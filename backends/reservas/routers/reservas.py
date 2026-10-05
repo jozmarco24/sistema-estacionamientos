@@ -385,3 +385,42 @@ async def expirar_reserva_cliente(
         return {"mensaje": "Reserva expirada por límite de tiempo y espacio liberado con éxito"}
     return {"mensaje": f"La reserva ya no se encuentra pendiente (estado actual: {reserva.estado.value})"}
 
+# ─────────────────────────────────────────────
+# NUEVO: Confirmar reserva tras pago exitoso (llamada interna desde pagos-service)
+# ─────────────────────────────────────────────
+@router.patch("/{reserva_id}/confirmar")
+async def confirmar_reserva_tras_pago(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    _internal: bool = Depends(verify_internal_key)
+):
+    reserva = db.query(Reserva).filter(Reserva.id == reserva_id).first()
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada.")
+
+    if reserva.estado == EstadoReserva.confirmada:
+        # Idempotente: ya estaba confirmada, no hacer nada
+        return {"ok": True, "estado": "confirmada", "mensaje": "La reserva ya estaba confirmada."}
+
+    if reserva.estado not in (EstadoReserva.pendiente,):
+        raise HTTPException(
+            status_code=409,
+            detail=f"No se puede confirmar una reserva en estado '{reserva.estado.value}'."
+        )
+
+    reserva.estado = EstadoReserva.confirmada
+    reserva.expira_en = None  # ← Cancelar la expiración de 10 minutos
+    db.commit()
+    db.refresh(reserva)
+
+    # Notificar a estacionamientos que el espacio pasa de "bloqueado" a "ocupado"
+    async with httpx.AsyncClient(timeout=6.0) as client:
+        try:
+            await client.put(
+                f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{reserva.espacio_id}/ocupar",
+                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+            )
+        except httpx.RequestError as exc:
+            print(f"[RESERVAS] ⚠️ Reserva #{reserva_id} confirmada pero error al ocupar espacio: {str(exc)}")
+
+    return {"ok": True, "estado": "confirmada", "reserva_id": reserva_id}

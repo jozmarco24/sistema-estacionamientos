@@ -1,6 +1,6 @@
 import os
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -43,7 +43,7 @@ def crear_pago(
         monto=pago_in.monto,
         metodo_pago=pago_in.metodo_pago or "tarjeta",
         estado=pago_in.estado or EstadoPago.pendiente,
-        fecha_pago=datetime.utcnow()
+        fecha_pago=datetime.now(timezone.utc)
     )
     db.add(nuevo_pago)
     db.commit()
@@ -63,6 +63,12 @@ def obtener_config_publica(
         
     if current_user.rol != "admin" and pago.pagador_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este pago")
+
+    if pago.estado != EstadoPago.pendiente:
+        raise HTTPException(
+            status_code=409,
+            detail=f"La orden de pago ya no está pendiente (estado actual: {pago.estado.value})."
+        )
 
     # Si es reserva, obtener public_key del propietario receptor
     if pago.tipo == TipoPago.reserva:
@@ -201,28 +207,20 @@ async def cobrar_con_culqi(
         pago.culqi_charge_id = charge_id
         pago.referencia_externa = charge_id
         pago.estado = EstadoPago.pagado
-        pago.fecha_pago = datetime.utcnow()
+        pago.fecha_pago = datetime.now(timezone.utc)
         db.commit()
         db.refresh(pago)
 
-        # Si es reserva, confirmar reserva automáticamente con reintentos resilientes
+        # Si es reserva, confirmar reserva automáticamente vía PATCH /confirmar
         if pago.tipo == TipoPago.reserva and pago.reserva_id:
-            confirmado = False
-            for intento in range(3):
-                try:
-                    async with httpx.AsyncClient(timeout=8.0) as client:
-                        resp_res = await client.put(
-                            f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/estado",
-                            headers={"X-Internal-Key": INTERNAL_SERVICE_KEY},
-                            json={"estado": "confirmada"}
-                        )
-                        if resp_res.status_code == 200:
-                            confirmado = True
-                            break
-                except Exception as e:
-                    print(f"Intento {intento+1}/3 falló al confirmar reserva #{pago.reserva_id}: {e}")
-            if not confirmado:
-                print(f"ADVERTENCIA CRÍTICA: No se pudo confirmar automáticamente la reserva #{pago.reserva_id} tras 3 intentos. Pago #{pago.id} registrado.")
+            try:
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    await client.patch(
+                        f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/confirmar",
+                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+                    )
+            except Exception as exc:
+                print(f"[PAGOS] ⚠️ Error llamando a confirmar reserva #{pago.reserva_id}: {exc}")
 
         # Si es suscripción, activar suscripción en usuarios con reintentos
         if pago.tipo == TipoPago.suscripcion and pago.suscripcion_id:
@@ -326,14 +324,14 @@ async def configurar_mis_credenciales(
             public_key=pk,
             secret_key_cifrada=cifrada,
             valida=valida,
-            verificada_en=datetime.utcnow()
+            verificada_en=datetime.now(timezone.utc)
         )
         db.add(cred)
     else:
         cred.public_key = pk
         cred.secret_key_cifrada = cifrada
         cred.valida = valida
-        cred.verificada_en = datetime.utcnow()
+        cred.verificada_en = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(cred)
@@ -450,7 +448,7 @@ async def procesar_pago_interno(
         raise HTTPException(status_code=404, detail="Pago no encontrado")
     
     pago.estado = payload.estado
-    pago.fecha_pago = datetime.utcnow()
+    pago.fecha_pago = datetime.now(timezone.utc)
     db.commit()
     db.refresh(pago)
 
