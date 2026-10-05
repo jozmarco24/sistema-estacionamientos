@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso | SmartPark</title>
+    <!-- Google Fonts - Tipografía Limpia y Corporativa (Plus Jakarta Sans) -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-blue: #0284c7;
+            --primary-hover: #0369a1;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --bg-page: #f8fafc;
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
+            --portal-bg: #f1f5f9;
+            --google-btn-bg: #ffffff;
+            --google-btn-hover: #f8fafc;
+            --google-btn-border: #cbd5e1;
+            --google-btn-text: #334155;
+            --shadow-card: 0 10px 30px -5px rgba(15, 23, 42, 0.06), 0 20px 25px -5px rgba(15, 23, 42, 0.03);
+        }
+
+        body.dark-mode {
+            --primary-blue: #38bdf8;
+            --primary-hover: #0284c7;
+            --text-dark: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --bg-page: #0b0f19;
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --input-bg: rgba(15, 23, 42, 0.7);
+            --portal-bg: rgba(15, 23, 42, 0.8);
+            --google-btn-bg: rgba(15, 23, 42, 0.6);
+            --google-btn-hover: rgba(30, 41, 59, 0.9);
+            --google-btn-border: rgba(255, 255, 255, 0.15);
+            --google-btn-text: #f1f5f9;
+            --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+        }
+
+        body {
+            background-color: var(--bg-page);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-dark);
+            padding: 24px 16px;
+            position: relative;
+        }
+
+        /* Botón de alternancia de Tema (Modo Claro / Oscuro) */
+        .theme-toggle-fixed {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-color);
+            color: var(--text-dark);
+            padding: 8px 16px;
+            border-radius: 9999px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+        .theme-toggle-fixed:hover {
+            border-color: var(--primary-blue);
+        }
+
+        /* Selector de perfil superior (Conductor vs Empresa) */
+        .portal-tabs {
+            display: inline-flex;
+            background: var(--portal-bg);
+            padding: 4px;
+            border-radius: 9999px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .portal-tab-btn {
+            border: none;
+            background: transparent;
+            padding: 8px 18px;
+            border-radius: 9999px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .portal-tab-btn.active {
+            background: var(--card-bg);
+            color: var(--primary-blue);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Tarjeta Blanca Limpia Minimalista */
+        .auth-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            width: 100%;
+            max-width: 420px;
+            padding: 40px 36px;
+            border-radius: 24px;
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+            text-align: center;
+            position: relative;
+        }
+
+        /* Logo estilo marca moderna */
+        .logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+        }
+
+        .logo-text {
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text span {
+            color: var(--primary-blue);
+        }
+
+        .brand-subline {
+            font-size: 0.76rem;
+            color: #94a3b8;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-top: -6px;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+        }
+
+        .welcome-title {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text {
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-subtitle {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+            line-height: 1.45;
+        }
+
+        /* Formulario con campos limpios */
+        .form-field {
+            text-align: left;
+            margin-bottom: 18px;
+        }
+
+        .field-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+
+        .input-clean {
+            width: 100%;
+            height: 48px;
+            padding: 0 16px;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            background: var(--input-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .input-clean::placeholder {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+        }
+
+        .input-clean:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+
+        /* Botón Continuar Principal */
+        .btn-continue {
+            width: 100%;
+            height: 50px;
+            background: var(--primary-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+            margin-top: 8px;
+        }
+
+        .btn-continue:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+        }
+
+        .btn-continue:active {
+            transform: translateY(0);
+        }
+
+        /* Links de alternancia (¿No tiene una cuenta? Regístrese) */
+        .toggle-account-wrap {
+            margin: 22px 0 20px 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .toggle-account-wrap a {
+            color: var(--primary-blue);
+            font-weight: 700;
+            text-decoration: none;
+            margin-left: 4px;
+            cursor: pointer;
+        }
+
+        .toggle-account-wrap a:hover {
+            text-decoration: underline;
+        }
+
+        /* Separador "O" */
+        .divider-line {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .divider-line::before,
+        .divider-line::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .divider-line span {
+            padding: 0 14px;
+        }
+
+        /* Botón de Google Auténtico */
+        .btn-google {
+            width: 100%;
+            height: 48px;
+            background: var(--google-btn-bg);
+            color: var(--google-btn-text);
+            border: 1.5px solid var(--google-btn-border);
+            border-radius: 10px;
+            font-size: 0.93rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn-google:hover {
+            background: var(--google-btn-hover);
+            border-color: var(--primary-blue);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .google-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Alertas de error/éxito */
+        .alert-box {
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            margin-bottom: 20px;
+            text-align: left;
+            display: none;
+        }
+
+        .alert-box.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+        }
+
+        .alert-box.success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+        }
+
+        /* Loader */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Footer sutil */
+        .footer-note {
+            margin-top: 24px;
+            font-size: 0.78rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botón Flotante para Alternar Modo Claro / Modo Oscuro -->
+    <button class="theme-toggle-fixed" onclick="toggleTheme()" id="login-theme-btn">
+        <i class="fa-solid fa-moon"></i> Modo Oscuro
+    </button>
+
+    <!-- Selector de Tipo de Usuario -->
+    <div class="portal-tabs">
+        <button class="portal-tab-btn active" id="btn-portal-conductor" onclick="selectPortal('conductor')">
+            <i class="fa-solid fa-car"></i> Para Conductores
+        </button>
+        <button class="portal-tab-btn" id="btn-portal-empresa" onclick="selectPortal('empresa')">
+            <i class="fa-solid fa-building"></i> Para Empresas / Dueños
+        </button>
+    </div>
+
+    <!-- Tarjeta de Autenticación Blanca (Estilo Receto) -->
+    <div class="auth-card">
+        <!-- Logo -->
+        <div class="logo-wrap">
+            <div class="logo-icon"><i class="fa-solid fa-square-parking"></i></div>
+            <div class="logo-text">Smart<span>Park</span></div>
+        </div>
+        <div class="brand-subline">Estacionamientos Inteligentes</div>
+
+        <!-- Encabezado de Bienvenida -->
+        <h1 class="welcome-title" id="txt-title">Bienvenido</h1>
+        <p class="welcome-subtitle" id="txt-subtitle">
+            Ingresa tu correo para continuar hacia la plataforma
+        </p>
+
+        <!-- Caja de Alerta -->
+        <div class="alert-box error" id="auth-alert"></div>
+
+        <!-- Formulario -->
+        <form id="login-form" onsubmit="handleFormSubmit(event)">
+            <!-- Campo Nombre (solo visible cuando se elige Registrarse) -->
+            <div class="form-field" id="field-nombre" style="display: none;">
+                <label class="field-label" id="label-nombre">Nombre completo</label>
+                <input type="text" class="input-clean" id="input-nombre" placeholder="Ej. Juan Pérez">
+            </div>
+
+            <!-- Campo Correo Electrónico -->
+            <div class="form-field">
+                <label class="field-label">Correo electrónico*</label>
+                <input type="email" class="input-clean" id="input-email" placeholder="correo@ejemplo.com" required autofocus>
+            </div>
+
+            <!-- Campo Contraseña -->
+            <div class="form-field" id="field-password">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label class="field-label" style="margin-bottom:0;">Contraseña*</label>
+                    <span id="label-role-badge" style="font-size:0.75rem; color:#64748b; font-weight:600;">Conductor</span>
+                </div>
+                <input type="password" class="input-clean" id="input-password" placeholder="••••••••" required>
+            </div>
+
+            <!-- Botón Principal "Continuar" -->
+            <button type="submit" class="btn-continue" id="btn-submit">
+                <span id="btn-label">Continuar</span>
+                <div class="spinner" id="btn-spinner"></div>
+            </button>
+        </form>
+
+        <!-- Texto "¿No tiene una cuenta? Regístrese" -->
+        <div class="toggle-account-wrap">
+            <span id="toggle-prompt">¿No tiene una cuenta?</span>
+            <a onclick="toggleMode()" id="toggle-link">Regístrese</a>
+        </div>
+
+        <!-- Bloque Google (Solo para Conductores o acceso rápido) -->
+        <div id="google-block">
+            <div class="divider-line">
+                <span>o</span>
+            </div>
+
+            <!-- Botón Oficial "Continuar con Google" -->
+            <button type="button" class="btn-google" onclick="handleGoogleSignIn()">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                Continuar con Google
+            </button>
+        </div>
+
+        <div class="footer-note">
+            SmartPark Enterprise Platform &copy; 2026
+        </div>
+    </div>
+
+    <script>
+        const API_USUARIOS = '/api/usuarios';
+        let currentPortal = 'conductor'; // 'conductor' | 'empresa'
+        let currentMode = 'login';       // 'login' | 'register'
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeButton(isDark);
+        }
+
+        function updateThemeButton(isDark) {
+            const btn = document.getElementById('login-theme-btn');
+            if (btn) {
+                btn.innerHTML = isDark 
+                    ? '<i class="fa-solid fa-sun" style="color:#f59e0b;"></i> Modo Claro' 
+                    : '<i class="fa-solid fa-moon"></i> Modo Oscuro';
+            }
+        }
+
+        // Cargar preferencia persistente (si el usuario ya usaba dark en las otras vistas)
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            updateThemeButton(true);
+        } else {
+            updateThemeButton(false);
+        }
+
+        function selectPortal(portal) {
+            currentPortal = portal;
+            document.getElementById('btn-portal-conductor').classList.toggle('active', portal === 'conductor');
+            document.getElementById('btn-portal-empresa').classList.toggle('active', portal === 'empresa');
+
+            const badge = document.getElementById('label-role-badge');
+            const googleBlock = document.getElementById('google-block');
+            const lblNombre = document.getElementById('label-nombre');
+
+            if (portal === 'empresa') {
+                badge.innerText = 'Propietario / Operador';
+                lblNombre.innerText = 'Nombre de la Empresa o Razón Social';
+                googleBlock.style.display = 'none'; // Google directo para conductores
+                document.getElementById('txt-subtitle').innerText = 'Acceso a la plataforma de gestión y cobro para dueños de sedes';
+            } else {
+                badge.innerText = 'Conductor';
+                lblNombre.innerText = 'Nombre Completo';
+                googleBlock.style.display = 'block';
+                document.getElementById('txt-subtitle').innerText = 'Iniciar sesión en SmartPark para reservar y estacionar';
+            }
+
+            hideAlert();
+        }
+
+        function toggleMode() {
+            currentMode = (currentMode === 'login') ? 'register' : 'login';
+            const fNombre = document.getElementById('field-nombre');
+            const inputNombre = document.getElementById('input-nombre');
+            const btnLabel = document.getElementById('btn-label');
+            const togglePrompt = document.getElementById('toggle-prompt');
+            const toggleLink = document.getElementById('toggle-link');
+            const title = document.getElementById('txt-title');
+
+            if (currentMode === 'register') {
+                title.innerText = 'Crear Cuenta';
+                fNombre.style.display = 'block';
+                inputNombre.required = true;
+                btnLabel.innerText = 'Registrarse';
+                togglePrompt.innerText = '¿Ya tiene una cuenta?';
+                toggleLink.innerText = 'Iniciar sesión';
+            } else {
+                title.innerText = 'Bienvenido';
+                fNombre.style.display = 'none';
+                inputNombre.required = false;
+                btnLabel.innerText = 'Continuar';
+                togglePrompt.innerText = '¿No tiene una cuenta?';
+                toggleLink.innerText = 'Regístrese';
+            }
+            hideAlert();
+        }
+
+        // Si viene con ?mode=register
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'register') {
+            toggleMode();
+        }
+
+        function showAlert(msg, isSuccess = false) {
+            const alertBox = document.getElementById('auth-alert');
+            alertBox.innerText = msg;
+            alertBox.className = 'alert-box ' + (isSuccess ? 'success' : 'error');
+            alertBox.style.display = 'block';
+        }
+
+        function hideAlert() {
+            document.getElementById('auth-alert').style.display = 'none';
+        }
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            hideAlert();
+
+            const email = document.getElementById('input-email').value.trim();
+            const password = document.getElementById('input-password').value;
+            const spinner = document.getElementById('btn-spinner');
+            const btnLabel = document.getElementById('btn-label');
+
+            spinner.style.display = 'inline-block';
+            btnLabel.style.opacity = '0.7';
+
+            try {
+                if (currentMode === 'login') {
+                    // Iniciar Sesión con email + password
+                    const res = await fetch(`${API_USUARIOS}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || 'Credenciales inválidas');
+
+                    localStorage.setItem('jwt_token', data.access_token);
+                    localStorage.setItem('user_info', JSON.stringify(data.user));
+
+                    showAlert('¡Inicio de sesión exitoso! Redirigiendo...', true);
+
+                    let redirectUrl = 'dashboard.html?v=2';
+                    if (data.user.rol === 'admin') redirectUrl = 'admin.html?v=2';
+                    else if (data.user.rol === 'propietario') redirectUrl = 'propietario.html?v=2';
+                    else if (data.user.rol === 'operador') redirectUrl = 'operador.html?v=2';
+
+                    setTimeout(() => window.location.href = redirectUrl, 800);
+
+                } else {
+                    // Registro
+                    const nombre = document.getElementById('input-nombre').value.trim();
+                    const rol = (currentPortal === 'empresa') ? 'propietario' : 'conductor';
+
+                    const res = await fetch(`${API_USUARIOS}/registro`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nombre, email, password, rol })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || 'Error en el registro');
+
+                    showAlert('¡Cuenta creada con éxito! Ingresando...', true);
+                    // Login automático inmediato
+                    const loginRes = await fetch(`${API_USUARIOS}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const loginData = await loginRes.json();
+                    if (loginRes.ok) {
+                        localStorage.setItem('jwt_token', loginData.access_token);
+                        localStorage.setItem('user_info', JSON.stringify(loginData.user));
+                        let redirectUrl = (loginData.user.rol === 'propietario') ? 'propietario.html?v=2' : 'dashboard.html?v=2';
+                        setTimeout(() => window.location.href = redirectUrl, 800);
+                    } else {
+                        toggleMode();
+                    }
+                }
+            } catch (err) {
+                showAlert(err.message);
+            } finally {
+                spinner.style.display = 'none';
+                btnLabel.style.opacity = '1';
+            }
+        }
+
+        // Acceso con Google
+        async function handleGoogleSignIn() {
+            hideAlert();
+            const emailPrompt = prompt("Acceso rápido con Google:\nIngresa tu correo de Gmail/Google:", "conductor@gmail.com");
+            if (!emailPrompt) return;
+
+            const cleanEmail = emailPrompt.trim();
+            const derivedName = cleanEmail.split('@')[0];
+
+            try {
+                const res = await fetch(`${API_USUARIOS}/sso-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: cleanEmail, nombre: derivedName })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error de autenticación con Google');
+
+                localStorage.setItem('jwt_token', data.access_token);
+                localStorage.setItem('user_info', JSON.stringify(data.user));
+
+                showAlert(`¡Bienvenido ${data.user.nombre}! Redirigiendo...`, true);
+
+                let redirectUrl = 'dashboard.html?v=2';
+                if (data.user.rol === 'admin') redirectUrl = 'admin.html?v=2';
+                else if (data.user.rol === 'propietario') redirectUrl = 'propietario.html?v=2';
+                else if (data.user.rol === 'operador') redirectUrl = 'operador.html?v=2';
+
+                setTimeout(() => window.location.href = redirectUrl, 800);
+            } catch (err) {
+                showAlert(err.message);
+            }
+        }
+    </script>
+</body>
+</html>

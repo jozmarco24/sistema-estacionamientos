@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración Global | SmartPark Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution { 
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); 
+        }
+        
+        :root {
+            --bg-color: #0b0f19; 
+            --sidebar-bg: rgba(15, 23, 42, 0.85); 
+            --glass-bg: rgba(30, 41, 59, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1); 
+            --primary: #0284c7; 
+            --primary-hover: #0369a1;
+            --accent: #38bdf8;
+            --text-main: #f8fafc; 
+            --text-muted: #94a3b8;
+            --color-libre: #10b981; 
+            --color-ocupado: #ef4444; 
+            --color-reservado: #f59e0b;
+        }
+
+        body.light-mode {
+            --bg-color: #f8fafc; 
+            --sidebar-bg: rgba(255, 255, 255, 0.95); 
+            --glass-bg: #ffffff;
+            --glass-border: #e2e8f0; 
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #0284c7;
+            --text-main: #0f172a; 
+            --text-muted: #64748b;
+        }
+        body.light-mode .leaflet-layer, 
+        body.light-mode .leaflet-control-zoom-in, 
+        body.light-mode .leaflet-control-zoom-out, 
+        body.light-mode .leaflet-control-attribution { 
+            filter: none; 
+        }
+        body.light-mode .nav-item { color: #64748b; }
+        body.light-mode .nav-item:hover { background: #f1f5f9; color: #0f172a; }
+        body.light-mode .card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+        }
+        body.light-mode .card-title, body.light-mode td { color: #0f172a; }
+        body.light-mode th { 
+            background: #f8fafc; 
+            color: #64748b; 
+            border-bottom-color: #e2e8f0; 
+        }
+        body.light-mode td { border-bottom-color: #f1f5f9; }
+        body.light-mode .form-group input, body.light-mode .form-group select { background: #fff; color: #0f172a; border-color: #e2e8f0; }
+        body.light-mode .incidencia-row { background: rgba(239, 68, 68, 0.05); }
+        body.light-mode .stat-box { background: #ffffff; border: 1px solid #e2e8f0; }
+        body.light-mode .health-item { background: #ffffff; border-color: #e2e8f0; }
+        body.light-mode .btn-action { 
+            background: #f1f5f9; 
+            border-color: #cbd5e1; 
+            color: #0f172a; 
+        }
+        body.light-mode .btn-action:hover { background: #e2e8f0; }
+        body.light-mode .btn-secondary {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        body.light-mode .btn-secondary:hover { background: #e2e8f0; }
+        body.light-mode input[type="text"],
+        body.light-mode input[type="email"],
+        body.light-mode input[type="password"],
+        body.light-mode input[type="number"],
+        body.light-mode select {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        body.light-mode input::placeholder {
+            color: #94a3b8 !important;
+        }
+        body.light-mode #search-propietarios,
+        body.light-mode #search-sedes,
+        body.light-mode #search-pagos,
+        body.light-mode #search-reservas,
+        body.light-mode #search-sedes-admin,
+        body.light-mode #filtro-pagos-metodo,
+        body.light-mode #filtro-pagos-fecha,
+        body.light-mode #filtro-reservas-estado {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        body.light-mode h3 { color: #0f172a !important; }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.1) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.08) 0px, transparent 50%);
+            color: var(--text-main); 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden;
+        }
+
+        .sidebar { 
+            width: 280px; 
+            background: var(--sidebar-bg); 
+            backdrop-filter: blur(20px); 
+            border-right: 1px solid var(--glass-border); 
+            display: flex; 
+            flex-direction: column; 
+            padding: 24px 18px; 
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        .logo-area { 
+            font-size: 1.5rem; 
+            font-weight: 800; 
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-bottom: 24px; 
+            padding-left: 8px; 
+        }
+        .logo-area i { color: #0284c7; -webkit-text-fill-color: initial; }
+        
+        .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .nav-item { 
+            padding: 12px 14px; 
+            border-radius: 12px; 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            font-weight: 500; 
+            font-size: 0.95rem;
+            transition: all 0.25s ease; 
+            cursor: pointer; 
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-main); }
+        .nav-item.active { 
+            background: linear-gradient(90deg, rgba(2,132,199,0.18) 0%, rgba(2,132,199,0.03) 100%); 
+            color: var(--primary); 
+            border-left: 3px solid var(--primary); 
+            font-weight: 600; 
+        }
+        .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; }
+        
+        .nav-divider { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            padding: 14px 12px 4px 12px; 
+            letter-spacing: 1px; 
+            font-weight: 700; 
+        }
+        
+        .logout-btn { margin-top: auto; color: #ef4444 !important; }
+        .logout-btn:hover { background: rgba(239,68,68,0.1) !important; }
+
+        .main-content { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 30px 40px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 22px; 
+        }
+        .top-header { display: flex; justify-content: space-between; align-items: center; }
+        .greeting h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .greeting p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Mobile Header */
+        .mobile-bar {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--glass-border);
+            width: 100%;
+        }
+        .mobile-bar .toggle-btn {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.4rem;
+            cursor: pointer;
+        }
+
+        /* Sections Control */
+        .section-view { display: none; flex-direction: column; gap: 22px; animation: fadeIn 0.3s ease-in-out; }
+        .section-view.active-section { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 20px; 
+            padding: 24px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        }
+        .card-title { 
+            font-size: 1.15rem; 
+            font-weight: 600; 
+            margin-bottom: 18px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            color: #e2e8f0; 
+        }
+        
+        /* Stats 6 items */
+        .stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+        .stat-box { 
+            background: rgba(15, 23, 42, 0.4); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 16px; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+        }
+        .stat-box.libre { border-bottom: 3px solid var(--color-libre); }
+        .stat-box.reservado { border-bottom: 3px solid var(--color-reservado); }
+        .stat-box.ocupado { border-bottom: 3px solid var(--color-ocupado); }
+        .stat-box.ingresos { border-bottom: 3px solid var(--primary); }
+        .stat-box.sedes { border-bottom: 3px solid var(--accent); }
+        .stat-box.reservas-count { border-bottom: 3px solid #ec4899; }
+        .stat-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
+        .stat-value { font-size: 1.7rem; font-weight: 800; }
+
+        /* Health Service Status Badges */
+        .health-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .health-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--glass-border);
+            padding: 14px 18px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        .health-info { display: flex; flex-direction: column; gap: 3px; }
+        .health-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .health-meta { font-size: 0.75rem; color: var(--text-muted); }
+        
+        .health-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .health-status-badge.online {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .health-status-badge.offline {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .health-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .health-dot.online {
+            background: var(--color-libre);
+            box-shadow: 0 0 8px var(--color-libre);
+        }
+        .health-dot.offline {
+            background: var(--color-ocupado);
+            box-shadow: 0 0 8px var(--color-ocupado);
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .form-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .form-group input, .form-group select { 
+            background: rgba(15, 23, 42, 0.5); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 10px; 
+            padding: 12px 14px; 
+            color: var(--text-main); 
+            font-size: 0.95rem; 
+            outline: none; 
+            transition: all 0.3s ease; 
+        }
+        .form-group input:focus, .form-group select:focus { 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15); 
+        }
+        .btn-submit { 
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); 
+            color: #fff; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 12px; 
+            font-size: 0.95rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            width: 100%; 
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); 
+        }
+        .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 15px rgba(2, 132, 199, 0.5); }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        
+        #map-picker { width: 100%; height: 210px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 6px; }
+        #global-map { width: 100%; height: 440px; border-radius: 14px; border: 1px solid var(--glass-border); }
+
+        .table-wrapper { overflow-x: auto; overflow-y: auto; max-height: 400px; margin-top: 10px; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { 
+            padding: 12px 14px; 
+            font-size: 0.78rem; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            font-weight: 600; 
+            border-bottom: 1px solid var(--glass-border); 
+            position: sticky; 
+            top: 0; 
+            background: rgba(30, 41, 59, 0.95); 
+            backdrop-filter: blur(5px); 
+            z-index: 2; 
+        }
+        td { 
+            padding: 12px 14px; 
+            font-size: 0.9rem; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03); 
+            color: #e2e8f0; 
+        }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; display: inline-block; }
+        .status-badge.libre { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-badge.ocupado { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .status-badge.reservado { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .status-badge.activa { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-badge.cancelada { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        .btn-action {
+            background: rgba(255,255,255,0.08); 
+            border: 1px solid var(--glass-border); 
+            color: #fff; 
+            padding: 6px 10px; 
+            border-radius: 6px; 
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-action:hover { background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+
+        .alert-toast { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 2000; 
+            background: rgba(16, 185, 129, 0.95); 
+            backdrop-filter: blur(10px); 
+            color: #fff; 
+            padding: 14px 20px; 
+            border-radius: 12px; 
+            font-weight: 500; 
+            display: none; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+            animation: slideIn 0.3s ease forwards; 
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .incidencia-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px; 
+            background: rgba(239, 68, 68, 0.08); 
+            border-left: 3px solid #ef4444; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+        }
+        .incidencia-row .date { font-size: 0.75rem; color: #94a3b8; }
+        .incidencia-row .desc { font-size: 0.9rem; margin-top: 2px; }
+
+        .two-cols { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; }
+
+        /* Media Queries */
+        @media (max-width: 1200px) {
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            .health-grid { grid-template-columns: repeat(2, 1fr); }
+            .two-cols { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: auto; overflow: auto; }
+            .mobile-bar { display: flex; }
+            .sidebar { 
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                height: 100vh; 
+                width: 260px; 
+                transform: translateX(-100%); 
+                box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { padding: 20px 15px; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .top-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .health-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .stat-value { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Top Bar -->
+    <div class="mobile-bar">
+        <div class="logo-area" style="margin-bottom:0; font-size:1.3rem;">
+            <i class="fa-solid fa-square-parking"></i> SmartPark Admin
+        </div>
+        <button class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+    </div>
+
+    <!-- Sidebar Navigation Organizada por Secciones -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo-area"><i class="fa-solid fa-square-parking"></i> SmartPark</div>
+        <ul class="nav-menu">
+            <div class="nav-divider">Centro de Control</div>
+            <a href="#" class="nav-item active" onclick="switchSection('sec-dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Resumen General</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-sedes', this)"><i class="fa-solid fa-warehouse"></i> Sedes y Mapa</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-propietarios', this)"><i class="fa-solid fa-users-gear"></i> Propietarios</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-saas', this)"><i class="fa-solid fa-box-open"></i> Planes & Suscripciones</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-pagos', this)"><i class="fa-solid fa-credit-card"></i> Pagos & Transacciones</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-reservas', this)"><i class="fa-solid fa-clock-rotate-left"></i> Reservas en Vivo</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-conductores', this)"><i class="fa-solid fa-users"></i> Conductores</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-incidencias', this)"><i class="fa-solid fa-bell"></i> Incidencias</a>
+
+            <a href="#" class="nav-item logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</a>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div id="alert-toast" class="alert-toast">Acción completada con éxito.</div>
+
+        <div class="top-header">
+            <div class="greeting">
+                <h1 id="page-title">Centro de Control Global</h1>
+                <p id="page-subtitle">Monitoreo y métricas clave de SmartPark en tiempo real.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="refreshAll()" class="btn-action" title="Recargar datos">
+                    <i class="fa-solid fa-rotate"></i> Actualizar
+                </button>
+                <button onclick="toggleTheme()" id="theme-btn" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 10px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease;">
+                    <i class="fa-solid fa-sun"></i> Modo Claro
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= SECCIÓN 1: RESUMEN GENERAL (DASHBOARD) ================= -->
+        <section id="sec-dashboard" class="section-view active-section">
+            <!-- Healthcheck Status Bar 100% Funcional -->
+            <div class="card" style="padding: 20px 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <span style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <i class="fa-solid fa-server" style="color:var(--primary); margin-right: 6px;"></i> Estado de Microservicios (Healthcheck en Vivo)
+                        </span>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Comprobación de conectividad, latencia y disponibilidad de endpoints</p>
+                    </div>
+                    <button onclick="checkHealth()" class="btn-action" style="padding: 4px 10px; font-size: 0.8rem;">
+                        <i class="fa-solid fa-arrows-rotate"></i> Probar Ahora
+                    </button>
+                </div>
+
+                <div class="health-grid">
+                    <div class="health-item">
+                        <div class="health-info">
+                            <span class="health-name"><i class="fa-solid fa-user-shield" style="color:var(--primary);"></i> Usuarios</span>
+                            <span class="health-meta" id="health-meta-usuarios">Puerto 8001 | Latencia: --</span>
+                        </div>
+                        <div id="badge-usuarios" class="health-status-badge online">
+                            <span id="dot-usuarios" class="health-dot online"></span>
+                            <span id="txt-usuarios">Activo</span>
+                        </div>
+                    </div>
+
+                    <div class="health-item">
+                        <div class="health-info">
+                            <span class="health-name"><i class="fa-solid fa-square-parking" style="color:#06b6d4;"></i> Estacionamientos</span>
+                            <span class="health-meta" id="health-meta-estacionamientos">Puerto 8002 | Latencia: --</span>
+                        </div>
+                        <div id="badge-estacionamientos" class="health-status-badge online">
+                            <span id="dot-estacionamientos" class="health-dot online"></span>
+                            <span id="txt-estacionamientos">Activo</span>
+                        </div>
+                    </div>
+
+                    <div class="health-item">
+                        <div class="health-info">
+                            <span class="health-name"><i class="fa-solid fa-clock-rotate-left" style="color:#f59e0b;"></i> Reservas</span>
+                            <span class="health-meta" id="health-meta-reservas">Puerto 8003 | Latencia: --</span>
+                        </div>
+                        <div id="badge-reservas" class="health-status-badge online">
+                            <span id="dot-reservas" class="health-dot online"></span>
+                            <span id="txt-reservas">Activo</span>
+                        </div>
+                    </div>
+
+                    <div class="health-item">
+                        <div class="health-info">
+                            <span class="health-name"><i class="fa-solid fa-credit-card" style="color:#10b981;"></i> Pagos</span>
+                            <span class="health-meta" id="health-meta-pagos">Puerto 8004 | Latencia: --</span>
+                        </div>
+                        <div id="badge-pagos" class="health-status-badge online">
+                            <span id="dot-pagos" class="health-dot online"></span>
+                            <span id="txt-pagos">Activo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 12px; font-size: 0.75rem; color: var(--text-muted); text-align: right;" id="health-last-check">
+                    Última comprobación: --
+                </div>
+            </div>
+
+            <!-- Metrics Stats Row -->
+            <div class="stats-row">
+                <div class="stat-box libre">
+                    <span class="stat-label">Espacios Libres</span>
+                    <span class="stat-value" id="stat-libres" style="color: var(--color-libre);">0</span>
+                </div>
+                <div class="stat-box reservado">
+                    <span class="stat-label">Reservados</span>
+                    <span class="stat-value" id="stat-reservados" style="color: var(--color-reservado);">0</span>
+                </div>
+                <div class="stat-box ocupado">
+                    <span class="stat-label">Ocupados</span>
+                    <span class="stat-value" id="stat-ocupados" style="color: var(--color-ocupado);">0</span>
+                </div>
+                <div class="stat-box sedes">
+                    <span class="stat-label">Sedes Activas</span>
+                    <span class="stat-value" id="stat-sedes" style="color: var(--accent);">0</span>
+                </div>
+                <div class="stat-box reservas-count">
+                    <span class="stat-label">Total Reservas</span>
+                    <span class="stat-value" id="stat-reservas" style="color: #ec4899;">0</span>
+                </div>
+                <div class="stat-box ingresos">
+                    <span class="stat-label">MRR (SaaS Activo)</span>
+                    <span class="stat-value" id="stat-ingresos" style="color: var(--primary);">S/. 0.00</span>
+                </div>
+            </div>
+
+            <!-- Revenue Chart -->
+            <div class="card">
+                <h2 class="card-title"><i class="fa-solid fa-chart-line"></i> MRR SaaS (Ingresos Recurrentes por Membresías)</h2>
+                <canvas id="revenueChart" height="85"></canvas>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 2: GESTIÓN DE SEDES Y MAPA ================= -->
+        <section id="sec-sedes" class="section-view">
+            <div class="two-cols">
+                <!-- Mapa Global de Sedes -->
+                <div class="card" style="display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-earth-americas"></i> Sedes Activas en Mapa</h2>
+                        <button onclick="recenterMap()" class="btn-action" title="Centrar en todas las sedes">
+                            <i class="fa-solid fa-crosshairs"></i> Centrar Mapa
+                        </button>
+                    </div>
+                    <div id="global-map"></div>
+                </div>
+
+                <!-- Form Registrar/Editar Sede -->
+                <div class="card">
+                    <h2 id="sede-form-title" class="card-title"><i class="fa-solid fa-hotel"></i> Registrar Nueva Sede</h2>
+                    <form id="form-sede" onsubmit="handleCreateSede(event)">
+                        <input type="hidden" id="sede-edit-id">
+                        <div class="form-group">
+                            <label>Propietario Dueño</label>
+                            <select id="sede-propietario" required><option value="">Cargando propietarios...</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre de la Sede</label>
+                            <input type="text" id="sede-nombre" required placeholder="Ej. SmartPark Central">
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="sede-direccion" required placeholder="Jr. Asamblea 120">
+                        </div>
+                        <div class="form-group">
+                            <label>Tarifa por Hora (S/.)</label>
+                            <input type="number" id="sede-tarifa" step="0.5" value="5.0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ubicación (Haz clic en el mapa para fijar coordenadas)</label>
+                            <div id="map-picker"></div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group"><label>Latitud</label><input type="number" id="sede-lat" step="0.000001" required value="-13.157661"></div>
+                            <div class="form-group"><label>Longitud</label><input type="number" id="sede-lon" step="0.000001" required value="-74.227060"></div>
+                        </div>
+                        <button type="submit" id="btn-sede-submit" class="btn-submit" style="margin-top: 10px;">Crear Sede</button>
+                        <button type="button" id="btn-sede-cancel" class="btn-secondary" style="display:none; margin-top:8px;" onclick="cancelSedeEdit()">Cancelar Edición</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabla de Sedes Registradas con Buscador y Exportador -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-warehouse"></i> Listado General de Sedes</h2>
+                        <span id="badge-sedes-count" class="status-badge libre">0 sedes</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="search-sedes" oninput="filterSedesTable()" placeholder="Buscar por nombre o dirección..." style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 8px 14px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none; width: 220px;">
+                        <button onclick="exportSedesExcel()" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;">
+                            <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                        </button>
+                        <button onclick="exportSedesCSV()" class="btn-action" title="Exportar a CSV">
+                            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre & Dirección</th>
+                                <th>Propietario</th>
+                                <th>Tarifa</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sedes-tbody">
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando sedes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 3: PROPIETARIOS ================= -->
+        <section id="sec-propietarios" class="section-view">
+            <!-- Header con Acciones y Contador -->
+            <div class="card" style="padding: 20px 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h2 class="card-title" style="margin-bottom: 4px;">
+                            <i class="fa-solid fa-users-gear" style="color:var(--primary);"></i> Control y Acceso de Propietarios
+                        </h2>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">
+                            Los propietarios se auto-registran al comprar un plan. Desde aquí puedes <strong>Dar de Baja / Bloquear acceso</strong> al sistema o modificar credenciales.
+                        </p>
+                    </div>
+                    <button onclick="toggleModalCrearPropietario(true)" class="btn-action" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); color: #fff; padding: 10px 16px; font-weight: 600; border-radius: 10px;">
+                        <i class="fa-solid fa-user-plus"></i> Crear Propietario Manual
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla Principal de Propietarios con Buscador y Exportador -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h3 style="font-size: 1rem; color: #e2e8f0;"><i class="fa-solid fa-address-book"></i> Directorio de Dueños de Parqueaderos</h3>
+                        <span id="badge-propietarios-count" class="status-badge libre">0 propietarios</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="search-propietarios" oninput="filterPropietariosTable()" placeholder="Buscar por nombre o email..." style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 8px 14px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none; width: 220px;">
+                        <button onclick="exportPropietariosExcel()" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;">
+                            <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                        </button>
+                        <button onclick="exportPropietariosCSV()" class="btn-action" title="Exportar a CSV">
+                            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Propietario & Contacto</th>
+                                <th>Plan SaaS Asignado</th>
+                                <th>Sedes Activas</th>
+                                <th>Estado de Acceso</th>
+                                <th>Acción Inmediata</th>
+                            </tr>
+                        </thead>
+                        <tbody id="propietarios-tbody">
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando directorio...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal Opcional Crear/Editar Propietario -->
+        <div id="modal-propietario" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); z-index:9999; align-items:center; justify-content:center;">
+            <div class="card" style="width: 440px; max-width:90%; position:relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 id="propietario-form-title" class="card-title" style="margin-bottom:0;">
+                        <i class="fa-solid fa-user-plus"></i> Registrar Propietario
+                    </h2>
+                    <button onclick="toggleModalCrearPropietario(false)" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+                </div>
+                <form id="form-propietario" onsubmit="handlePropietario(event)">
+                    <input type="hidden" id="prop-id">
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="prop-nombre" required placeholder="Ej. Carlos Mendoza">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="prop-email" required placeholder="carlos@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="prop-pass" placeholder="(En blanco para mantener actual)">
+                    </div>
+                    <div class="form-group" id="prop-estado-group" style="display:none;">
+                        <label>Estado de Acceso</label>
+                        <select id="prop-activo"><option value="true">Activo (Permitir Ingreso)</option><option value="false">Bloqueado (Denegar Ingreso)</option></select>
+                    </div>
+                    <button type="submit" id="btn-prop-submit" class="btn-submit" style="margin-top: 10px;">Guardar Propietario</button>
+                    <button type="button" class="btn-secondary" style="margin-top:8px;" onclick="toggleModalCrearPropietario(false)">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= SECCIÓN 4: PLANES SAAS Y SUSCRIPCIONES ================= -->
+        <section id="sec-saas" class="section-view">
+            <div class="two-cols">
+                <!-- Planes SaaS SmartPark -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fa-solid fa-box-open"></i> Planes SaaS SmartPark</h2>
+                    <div class="table-wrapper" style="max-height: 220px; margin-bottom: 20px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Plan</th>
+                                    <th>Precio</th>
+                                    <th>Límites</th>
+                                    <th>Editar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="planes-tbody">
+                                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Cargando planes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Form Crear/Editar Plan -->
+                    <form id="form-plan" onsubmit="handleSavePlan(event)" style="border-top: 1px solid var(--glass-border); padding-top: 15px;">
+                        <input type="hidden" id="plan-id">
+                        <div class="form-group">
+                            <label id="lbl-plan-form">Crear / Modificar Plan</label>
+                            <input type="text" id="plan-nombre" placeholder="Nombre (ej. Plan Pro)" required>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                            <div class="form-group"><label>Precio S/.</label><input type="number" step="0.01" id="plan-precio" required></div>
+                            <div class="form-group"><label>Max Sedes</label><input type="number" id="plan-sedes" required></div>
+                            <div class="form-group"><label>Max Op.</label><input type="number" id="plan-operadores" required></div>
+                        </div>
+                        <div class="form-group" id="plan-activo-group" style="display:none;">
+                            <label>Estado</label>
+                            <select id="plan-activo"><option value="true">Activo</option><option value="false">Inactivo</option></select>
+                        </div>
+                        <button type="submit" id="btn-plan-submit" class="btn-submit" style="margin-top: 10px;">Guardar Plan</button>
+                        <button type="button" id="btn-plan-cancel" class="btn-secondary" style="display:none; margin-top:8px;" onclick="cancelPlanEdit()">Cancelar</button>
+                    </form>
+                </div>
+
+                <!-- Suscripciones Activas con Control de Cancelar / Reactivar -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-file-invoice"></i> Membresías Activas</h2>
+                        <span id="badge-subs-count" class="status-badge libre">0 activas</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">
+                        Administra el cobro y estado comercial de cada cliente (Cancelar, Reactivar o Extender +30 días).
+                    </p>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Propietario</th>
+                                    <th>Plan</th>
+                                    <th>Vencimiento</th>
+                                    <th>Estado</th>
+                                    <th>Acción Comercial</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suscripciones-tbody">
+                                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Cargando membresías...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN PAGOS Y TRANSACCIONES ================= -->
+        <section id="sec-pagos" class="section-view">
+            <!-- KPIs de Pagos -->
+            <div class="stats-row" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="stat-box ingresos">
+                    <span class="stat-label">Total Transacciones</span>
+                    <span class="stat-value" id="stat-pagos-count" style="color: var(--primary);">0</span>
+                </div>
+                <div class="stat-box libre">
+                    <span class="stat-label">Pagos Aprobados</span>
+                    <span class="stat-value" id="stat-pagos-aprobados" style="color: var(--color-libre);">0</span>
+                </div>
+                <div class="stat-box reservado">
+                    <span class="stat-label">Pagos Pendientes</span>
+                    <span class="stat-value" id="stat-pagos-pendientes" style="color: var(--color-reservado);">0</span>
+                </div>
+                <div class="stat-box sedes">
+                    <span class="stat-label">Monto Total Facturado</span>
+                    <span class="stat-value" id="stat-pagos-monto" style="color: var(--accent);">S/. 0.00</span>
+                </div>
+            </div>
+
+            <!-- Tabla de Pagos & Transacciones -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-receipt"></i> Historial Global de Transacciones</h2>
+                        <span id="badge-pagos-count" class="status-badge libre">0 pagos</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="search-pagos" oninput="filterPagosTable()" placeholder="Buscar por método o ID..." style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 8px 14px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none; width: 220px;">
+                        <button onclick="exportPagosExcel()" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;">
+                            <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                        </button>
+                        <button onclick="exportPagosCSV()" class="btn-action" title="Exportar a CSV">
+                            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                        </button>
+                        <button onclick="loadPagosGlobales()" class="btn-action"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-wrapper" style="max-height: 480px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Transacción</th>
+                                <th>Reserva Asociada</th>
+                                <th>Monto</th>
+                                <th>Método de Pago</th>
+                                <th>Fecha y Hora</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pagos-tbody">
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando transacciones...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 5: RESERVAS EN VIVO ================= -->
+        <section id="sec-reservas" class="section-view">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-clock-rotate-left"></i> Historial y Reservas Globales en Vivo</h2>
+                        <span id="badge-reservas-count" class="status-badge libre">0 reservas</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <select id="filter-reservas-sede" onchange="filterReservasTable()" style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 8px 12px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none; min-width: 170px;">
+                            <option value="">🏢 Todos los Estacionamientos</option>
+                        </select>
+                        <select id="filter-reservas-estado" onchange="filterReservasTable()" style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 8px 12px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none;">
+                            <option value="">Todos los Estados</option>
+                            <option value="confirmada">Confirmada</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="cancelada">Cancelada</option>
+                            <option value="finalizada">Finalizada</option>
+                        </select>
+                        <input type="text" id="search-reservas" oninput="filterReservasTable()" placeholder="Buscar por placa o ID..." style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 8px 14px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none; width: 180px;">
+                        <button onclick="exportReservasExcel()" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;">
+                            <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                        </button>
+                        <button onclick="exportReservasCSV()" class="btn-action" title="Exportar a CSV">
+                            <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                        </button>
+                        <button onclick="loadReservasGlobales()" class="btn-action"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-wrapper" style="max-height: 500px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Estacionamiento / Sede</th>
+                                <th>Espacio</th>
+                                <th>Placa Vehículo</th>
+                                <th>Fecha Inicio</th>
+                                <th>Fecha Fin</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reservas-tbody">
+                            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando reservas...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 6: CONDUCTORES ================= -->
+        <section id="sec-conductores" class="section-view">
+            <div class="card">
+                <h2 class="card-title"><i class="fa-solid fa-users"></i> Conductores Registrados</h2>
+                <div class="table-wrapper" style="max-height: 500px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre Completo</th>
+                                <th>Correo Electrónico</th>
+                                <th>Estado de Cuenta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="conductores-tbody">
+                            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Cargando conductores...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 7: INCIDENCIAS ================= -->
+        <section id="sec-incidencias" class="section-view">
+            <div class="card">
+                <h2 class="card-title" style="color: #f87171;"><i class="fa-solid fa-bell"></i> Incidencias Reportadas por Operadores de Caseta</h2>
+                <div id="incidencias-list" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: var(--text-muted); text-align: center;">No hay incidencias recientes.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_USUARIOS = '/api';
+        const API_ESTACIONAMIENTOS = '/api/estacionamientos';
+        const API_RESERVAS = '/api/reservas';
+        const API_PAGOS = '/api/pagos';
+        
+        let pickerMap, pickerMarker, globalMap;
+        let mapMarkersLayer = null;
+        let revenueChartInstance = null;
+        let propietariosCache = [];
+        let sedesCache = [];
+        let planesCache = [];
+
+        const token = localStorage.getItem('jwt_token');
+        const userInfoRaw = localStorage.getItem('user_info');
+        if (!token || !userInfoRaw) { 
+            window.location.href = 'login.html'; 
+        } else {
+            try {
+                const u = JSON.parse(userInfoRaw);
+                if (u.rol !== 'admin') window.location.href = 'dashboard.html';
+            } catch(e) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function logout() { 
+            localStorage.removeItem('jwt_token'); 
+            localStorage.removeItem('user_info'); 
+            window.location.href = 'login.html'; 
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // Navegación por Secciones
+        const sectionTitles = {
+            'sec-dashboard': { title: 'Centro de Control Global', sub: 'Monitoreo y métricas clave de SmartPark en tiempo real.' },
+            'sec-sedes': { title: 'Gestión de Sedes y Mapa', sub: 'Control geográfico y administración de tarifas por sede.' },
+            'sec-propietarios': { title: 'Gestión de Propietarios', sub: 'Cuentas de propietarios y dueños de parqueaderos.' },
+            'sec-saas': { title: 'Planes SaaS y Suscripciones', sub: 'Configuración de paquetes mensuales y membresías activas.' },
+            'sec-pagos': { title: 'Pagos & Transacciones Globales', sub: 'Auditoría financiera y flujo de caja de todas las transacciones procesadas.' },
+            'sec-reservas': { title: 'Reservas Globales en Vivo', sub: 'Supervisión en tiempo real de espacios y vehículos reservados.' },
+            'sec-conductores': { title: 'Directorio de Conductores', sub: 'Usuarios finales registrados en la plataforma móvil y web.' },
+            'sec-incidencias': { title: 'Reporte de Incidencias', sub: 'Alertas y sucesos reportados por operadores en caseta.' }
+        };
+
+        function switchSection(sectionId, el) {
+            document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active-section'));
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.add('active-section');
+
+            document.querySelectorAll('.nav-menu .nav-item').forEach(item => item.classList.remove('active'));
+            if (el) el.classList.add('active');
+
+            if (sectionTitles[sectionId]) {
+                document.getElementById('page-title').innerText = sectionTitles[sectionId].title;
+                document.getElementById('page-subtitle').innerText = sectionTitles[sectionId].sub;
+            }
+
+            // Cuando cambiamos a la sección sedes, redimensionamos y centramos el mapa
+            if (sectionId === 'sec-sedes') {
+                setTimeout(() => {
+                    if (globalMap) {
+                        globalMap.invalidateSize();
+                        recenterMap();
+                    }
+                    if (pickerMap) pickerMap.invalidateSize();
+                }, 150);
+            }
+
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('theme-btn');
+            body.classList.toggle('light-mode');
+            const isLight = body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            btn.innerHTML = isLight ? '<i class="fa-solid fa-moon"></i> Modo Oscuro' : '<i class="fa-solid fa-sun"></i> Modo Claro';
+        }
+
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            const btn = document.getElementById('theme-btn');
+            if(btn) btn.innerHTML = '<i class="fa-solid fa-moon"></i> Modo Oscuro';
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('alert-toast');
+            toast.innerText = msg;
+            toast.style.background = isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 4000);
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            initializeMaps();
+            await refreshAll();
+            // Polling de salud cada 30 segundos
+            setInterval(checkHealth, 30000);
+        });
+
+        async function refreshAll() {
+            await checkHealth();
+            await loadPropietarios();
+            await loadConductores();
+            await loadSedesAndStats();
+            await loadReservasGlobales();
+            await loadIncidencias();
+            await loadRevenueChart();
+            await loadSaaS();
+            await loadPagosGlobales();
+        }
+
+        // ================= HEALTHCHECK EN VIVO CON MEDICIÓN DE LATENCIA =================
+        async function checkHealth() {
+            const updateServiceUI = (key, ok, ms) => {
+                const dot = document.getElementById(`dot-${key}`);
+                const badge = document.getElementById(`badge-${key}`);
+                const txt = document.getElementById(`txt-${key}`);
+                const meta = document.getElementById(`health-meta-${key}`);
+
+                if (ok) {
+                    if (dot) dot.className = 'health-dot online';
+                    if (badge) badge.className = 'health-status-badge online';
+                    if (txt) txt.innerText = 'Operativo';
+                    if (meta) meta.innerText = `Puerto ${meta.innerText.split('|')[0].replace('Puerto','').trim()} | ${ms} ms`;
+                } else {
+                    if (dot) dot.className = 'health-dot offline';
+                    if (badge) badge.className = 'health-status-badge offline';
+                    if (txt) txt.innerText = 'Caído';
+                    if (meta) meta.innerText = `Sin conexión | Error`;
+                }
+            };
+
+            const pingService = async (url) => {
+                const start = performance.now();
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    const end = performance.now();
+                    return { ok: res.ok, ms: Math.round(end - start) };
+                } catch(e) {
+                    return { ok: false, ms: 0 };
+                }
+            };
+
+            const [u, e, r, p] = await Promise.all([
+                pingService(`/api/usuarios/`),
+                pingService(`${API_ESTACIONAMIENTOS}/`),
+                pingService(`${API_RESERVAS}/`),
+                pingService(`${API_PAGOS}/`)
+            ]);
+
+            updateServiceUI('usuarios', u.ok, u.ms);
+            updateServiceUI('estacionamientos', e.ok, e.ms);
+            updateServiceUI('reservas', r.ok, r.ms);
+            updateServiceUI('pagos', p.ok, p.ms);
+
+            document.getElementById('health-last-check').innerHTML = `<i class="fa-solid fa-clock"></i> Última comprobación: ${new Date().toLocaleTimeString()} (Auto-refresco cada 30s)`;
+        }
+
+        // ================= MAPAS (LEAFLET) =================
+        function initializeMaps() {
+            // Mapa Form Picker
+            pickerMap = L.map('map-picker').setView([-13.157661, -74.227060], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(pickerMap);
+            pickerMarker = L.marker([-13.157661, -74.227060]).addTo(pickerMap);
+            
+            pickerMap.on('click', (e) => {
+                document.getElementById('sede-lat').value = e.latlng.lat.toFixed(6);
+                document.getElementById('sede-lon').value = e.latlng.lng.toFixed(6);
+                pickerMarker.setLatLng(e.latlng);
+            });
+
+            // Mapa Global de Sedes
+            globalMap = L.map('global-map').setView([-13.157661, -74.227060], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(globalMap);
+
+            mapMarkersLayer = L.layerGroup().addTo(globalMap);
+        }
+
+        function recenterMap() {
+            if (!globalMap || sedesCache.length === 0) return;
+            const validCoords = sedesCache.filter(s => s.latitud && s.longitud);
+            if (validCoords.length === 0) return;
+
+            const bounds = L.latLngBounds(validCoords.map(s => [s.latitud, s.longitud]));
+            globalMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+        }
+
+        async function loadPropietarios() {
+            try {
+                const response = await fetch(`${API_USUARIOS}/usuarios/propietarios`, { headers: { 'Authorization': `Bearer ${token}` } });
+                propietariosCache = await response.json();
+                
+                document.getElementById('badge-propietarios-count').innerText = `${propietariosCache.length} propietarios`;
+
+                // Obtener suscripciones para mapear el plan de cada propietario
+                let subs = [];
+                try {
+                    const subsRes = await fetch(`${API_USUARIOS}/usuarios/suscripciones/todas`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    subs = await subsRes.json();
+                } catch(e) {}
+
+                const tbody = document.getElementById('propietarios-tbody');
+                const selectSedeProp = document.getElementById('sede-propietario');
+                tbody.innerHTML = '';
+                selectSedeProp.innerHTML = '<option value="">-- Selecciona el Propietario --</option>';
+                
+                propietariosCache.forEach(p => {
+                    // Contar sedes de este propietario
+                    const sedesDelProp = sedesCache.filter(s => s.propietario_id === p.id);
+                    
+                    // Buscar suscripción activa
+                    const subActiva = subs.find(s => s.propietario_id === p.id && s.estado === 'activa');
+                    let planLabel = '<span style="color:#94a3b8; font-size:0.8rem;">Sin Plan Activo</span>';
+                    if (subActiva) {
+                        const planObj = planesCache.find(pl => pl.id === subActiva.plan_id);
+                        const planName = planObj ? planObj.nombre : `Plan #${subActiva.plan_id}`;
+                        planLabel = `<span style="color:var(--accent); font-weight:600;"><i class="fa-solid fa-gem"></i> ${planName}</span>`;
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>#${p.id}</td>
+                        <td>
+                            <strong>${p.nombre}</strong><br>
+                            <span style="font-size:0.8rem; color:#94a3b8;"><i class="fa-solid fa-envelope"></i> ${p.email}</span>
+                        </td>
+                        <td>${planLabel}</td>
+                        <td><span style="font-weight:600;">${sedesDelProp.length}</span> sedes</td>
+                        <td>
+                            <span class="status-badge ${p.activo ? 'libre' : 'ocupado'}">
+                                ${p.activo ? '<i class="fa-solid fa-check"></i> Activo' : '<i class="fa-solid fa-ban"></i> Bloqueado'}
+                            </span>
+                        </td>
+                        <td>
+                            <button onclick='togglePropietarioAcceso(${p.id}, ${!p.activo})' class="btn-action" style="${p.activo ? 'color:#ef4444;' : 'color:#10b981;'}" title="${p.activo ? 'Dar de baja / Bloquear acceso' : 'Reactivar acceso'}">
+                                <i class="fa-solid ${p.activo ? 'fa-user-slash' : 'fa-user-check'}"></i> ${p.activo ? 'Bloquear' : 'Desbloquear'}
+                            </button>
+                            <button onclick='editPropietario(${JSON.stringify(p)})' class="btn-action" title="Editar datos o clave">
+                                <i class="fa-solid fa-key"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    if (p.activo) selectSedeProp.appendChild(new Option(`${p.nombre} (${p.email})`, p.id));
+                });
+                if (propietariosCache.length === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay propietarios registrados.</td></tr>';
+            } catch (err) {}
+        }
+
+        async function togglePropietarioAcceso(id, nuevoEstado) {
+            try {
+                const response = await fetch(`${API_USUARIOS}/usuarios/propietarios/${id}/toggle-activo`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Error al cambiar acceso del propietario');
+                showToast(`Acceso del propietario #${id} ${nuevoEstado ? 'activado' : 'bloqueado'}`);
+                await loadPropietarios();
+            } catch(e) { showToast(e.message, true); }
+        }
+
+        function toggleModalCrearPropietario(show) {
+            const modal = document.getElementById('modal-propietario');
+            if (modal) modal.style.display = show ? 'flex' : 'none';
+            if (!show) cancelPropEdit();
+        }
+
+        async function loadConductores() {
+            try {
+                const response = await fetch(`${API_USUARIOS}/usuarios/`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const usuarios = await response.json();
+                const tbody = document.getElementById('conductores-tbody');
+                tbody.innerHTML = '';
+                
+                const conductores = usuarios.filter(u => u.rol === 'conductor');
+                conductores.forEach(c => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>#${c.id}</td>
+                        <td>${c.nombre}</td>
+                        <td>${c.email}</td>
+                        <td><span class="status-badge ${c.activo ? 'libre' : 'ocupado'}">${c.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                if (conductores.length === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay conductores.</td></tr>';
+            } catch (err) {}
+        }
+
+        async function loadSedesAndStats() {
+            try {
+                const sedesResp = await fetch(`${API_ESTACIONAMIENTOS}/sedes/`);
+                sedesCache = await sedesResp.json();
+                
+                document.getElementById('stat-sedes').innerText = sedesCache.length;
+                document.getElementById('badge-sedes-count').innerText = `${sedesCache.length} sedes`;
+
+                // Limpiar pines anteriores del mapa
+                if (mapMarkersLayer) {
+                    mapMarkersLayer.clearLayers();
+                }
+
+                let totalLibres = 0, totalReservados = 0, totalOcupados = 0;
+                const tbody = document.getElementById('sedes-tbody');
+                tbody.innerHTML = '';
+                
+                for (const s of sedesCache) {
+                    // Contar espacios por sede
+                    let countLibre = 0, countTotal = 0;
+                    try {
+                        const espaciosResp = await fetch(`${API_ESTACIONAMIENTOS}/espacios/sede/${s.id}`);
+                        const espacios = await espaciosResp.json();
+                        countTotal = espacios.length;
+                        espacios.forEach(esp => {
+                            if (esp.estado === 'libre') { totalLibres++; countLibre++; }
+                            else if (esp.estado === 'reservado') totalReservados++;
+                            else if (esp.estado === 'ocupado') totalOcupados++;
+                        });
+                    } catch(e) {}
+
+                    // Owner name
+                    const owner = propietariosCache.find(p => p.id === s.propietario_id);
+                    const ownerName = owner ? owner.nombre : `Prop #${s.propietario_id}`;
+
+                    // Agregar Pin interactivo al Mapa
+                    if (s.latitud && s.longitud && mapMarkersLayer) {
+                        const markerColor = s.activa ? '#10b981' : '#ef4444';
+                        const customIcon = L.divIcon({
+                            className: 'custom-map-pin',
+                            html: `<div style="background:${markerColor}; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; box-shadow:0 0 12px ${markerColor}; border:2px solid #fff;"><i class="fa-solid fa-parking"></i></div>`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        });
+
+                        const marker = L.marker([s.latitud, s.longitud], { icon: customIcon });
+                        marker.bindPopup(`
+                            <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:180px;">
+                                <h3 style="margin:0 0 4px 0; color:#0f172a; font-size:1rem;">${s.nombre}</h3>
+                                <p style="margin:0 0 6px 0; color:#64748b; font-size:0.8rem;"><i class="fa-solid fa-location-dot"></i> ${s.direccion}</p>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.82rem; font-weight:600; color:#0f172a;">
+                                    <span>Tarifa: S/. ${(s.tarifa_hora || 5.0).toFixed(2)}/hr</span>
+                                    <span style="color:#10b981;">${countLibre}/${countTotal} Libres</span>
+                                </div>
+                                <div style="font-size:0.75rem; color:#475569; margin-bottom:8px;">Dueño: <strong>${ownerName}</strong></div>
+                                <button onclick='focusAndEditSede(${JSON.stringify(s)})' style="width:100%; padding:6px; background:#0284c7; border:none; border-radius:6px; color:#fff; font-weight:600; cursor:pointer;">
+                                    <i class="fa-solid fa-pen"></i> Editar Sede
+                                </button>
+                            </div>
+                        `);
+                        mapMarkersLayer.addLayer(marker);
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>#${s.id}</td>
+                        <td><strong>${s.nombre}</strong><br><span style="font-size:0.75rem; color:#94a3b8;"><i class="fa-solid fa-location-dot"></i> ${s.direccion}</span></td>
+                        <td>${ownerName}</td>
+                        <td>S/. ${(s.tarifa_hora || 5.0).toFixed(2)}</td>
+                        <td><span class="status-badge ${s.activa ? 'libre' : 'ocupado'}">${s.activa ? 'Operando' : 'Cerrada'}</span></td>
+                        <td>
+                            <button onclick='zoomToSede(${s.latitud}, ${s.longitud})' class="btn-action" title="Ver en mapa"><i class="fa-solid fa-map-pin"></i></button>
+                            <button onclick='editSede(${JSON.stringify(s)})' class="btn-action" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick='toggleSedeEstado(${s.id}, ${!s.activa})' class="btn-action" title="${s.activa ? 'Desactivar' : 'Activar'}">
+                                <i class="fa-solid ${s.activa ? 'fa-pause' : 'fa-play'}"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+
+                if (sedesCache.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay sedes registradas.</td></tr>';
+                }
+
+                document.getElementById('stat-libres').innerText = totalLibres;
+                document.getElementById('stat-reservados').innerText = totalReservados;
+                document.getElementById('stat-ocupados').innerText = totalOcupados;
+
+                // Centrar vista general en los pines cargados
+                recenterMap();
+
+            } catch (err) {}
+        }
+
+        function zoomToSede(lat, lon) {
+            if (globalMap) {
+                switchSection('sec-sedes', document.querySelector('.nav-item[onclick*="sec-sedes"]'));
+                setTimeout(() => {
+                    globalMap.setView([lat, lon], 17);
+                }, 200);
+            }
+        }
+
+        function focusAndEditSede(s) {
+            editSede(s);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        let espaciosMapCache = {}; // espacio_id -> { sede_id, sede_nombre, numero }
+
+        async function loadReservasGlobales() {
+            try {
+                // 1. Cargar mapa de espacios si aún no se tiene
+                if (Object.keys(espaciosMapCache).length === 0) {
+                    try {
+                        const espRes = await fetch(`${API_ESTACIONAMIENTOS}/espacios/`);
+                        if (espRes.ok) {
+                            const espaciosList = await espRes.json();
+                            espaciosList.forEach(esp => {
+                                const sedeObj = (sedesCache || []).find(s => s.id === esp.sede_id);
+                                espaciosMapCache[esp.id] = {
+                                    sede_id: esp.sede_id,
+                                    sede_nombre: sedeObj ? sedeObj.nombre : `Sede #${esp.sede_id}`,
+                                    numero: esp.numero
+                                };
+                            });
+                        }
+                    } catch(err) {
+                        console.warn("No se pudo cargar mapa de espacios:", err);
+                    }
+                }
+
+                // 2. Popular selector de sedes para filtrar reservas si está vacío
+                const sedeSelect = document.getElementById('filter-reservas-sede');
+                if (sedeSelect && sedeSelect.options.length <= 1 && sedesCache && sedesCache.length > 0) {
+                    sedesCache.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.textContent = `🏢 ${s.nombre}`;
+                        sedeSelect.appendChild(opt);
+                    });
+                }
+
+                // 3. Obtener reservas
+                const res = await fetch(`${API_RESERVAS}/reservas/`);
+                if (!res.ok) return;
+                const reservas = await res.json();
+                
+                // Enriquecer reservas con datos de sede y espacio
+                reservasCache = reservas.map(r => {
+                    const infoEsp = espaciosMapCache[r.espacio_id] || {};
+                    return {
+                        ...r,
+                        sede_id: infoEsp.sede_id || null,
+                        sede_nombre: infoEsp.sede_nombre || 'Sede General',
+                        espacio_numero: infoEsp.numero || `#${r.espacio_id}`
+                    };
+                });
+
+                document.getElementById('stat-reservas').innerText = reservasCache.length;
+                document.getElementById('badge-reservas-count').innerText = `${reservasCache.length} reservas`;
+
+                renderReservasTable(reservasCache);
+            } catch(e) {
+                console.error("Error al cargar reservas globales:", e);
+            }
+        }
+
+        function renderReservasTable(lista) {
+            const tbody = document.getElementById('reservas-tbody');
+            tbody.innerHTML = '';
+            
+            if (!lista || lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No se encontraron reservas con los filtros aplicados.</td></tr>';
+                return;
+            }
+
+            lista.slice().reverse().forEach(r => {
+                const tr = document.createElement('tr');
+                const badgeClass = r.estado === 'confirmada' ? 'activa' : (r.estado === 'cancelada' ? 'cancelada' : 'reservado');
+                const fechaIni = r.fecha_inicio ? r.fecha_inicio.replace('T', ' ').slice(0, 16) : '-';
+                const fechaFin = r.fecha_fin ? r.fecha_fin.replace('T', ' ').slice(0, 16) : '-';
+
+                tr.innerHTML = `
+                    <td><strong>#${r.id}</strong></td>
+                    <td><strong style="color:var(--primary);"><i class="fa-solid fa-square-parking"></i> ${r.sede_nombre}</strong></td>
+                    <td><span style="background:rgba(2,132,199,0.1); color:var(--accent); padding:2px 8px; border-radius:6px; font-weight:700;">${r.espacio_numero}</span></td>
+                    <td><strong style="letter-spacing:0.5px;">${r.placa_vehiculo || 'N/A'}</strong></td>
+                    <td><span style="font-size:0.82rem; color:var(--text-muted);">${fechaIni}</span></td>
+                    <td><span style="font-size:0.82rem; color:var(--text-muted);">${fechaFin}</span></td>
+                    <td><span class="status-badge ${badgeClass}">${r.estado ? r.estado.toUpperCase() : 'CONFIRMADA'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadIncidencias() {
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/incidencias/`);
+                if(response.ok) {
+                    const incidencias = await response.json();
+                    const list = document.getElementById('incidencias-list');
+                    list.innerHTML = '';
+                    
+                    if (incidencias.length === 0) {
+                        list.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No hay incidencias reportadas.</p>';
+                        return;
+                    }
+
+                    incidencias.slice(0, 15).forEach(inc => {
+                        const div = document.createElement('div');
+                        div.className = 'incidencia-row';
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight: 600;">Sede #${inc.sede_id} (Operador #${inc.operador_id})</div>
+                                <div class="desc">${inc.descripcion}</div>
+                            </div>
+                            <div class="date">${new Date(inc.fecha_reporte).toLocaleDateString()}</div>
+                        `;
+                        list.appendChild(div);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        async function loadRevenueChart() {
+            try {
+                const planesRes = await fetch(`${API_USUARIOS}/usuarios/planes`, { headers: { 'Authorization': `Bearer ${token}` }});
+                planesCache = await planesRes.json();
+                const planesMap = {};
+                planesCache.forEach(p => planesMap[p.id] = p.precio);
+
+                const response = await fetch(`${API_USUARIOS}/usuarios/suscripciones/todas`, { headers: { 'Authorization': `Bearer ${token}` }});
+                if (!response.ok) return;
+                const subs = await response.json();
+                
+                let mrr = 0;
+                const dailyRevenue = {};
+
+                subs.forEach(s => {
+                    if (s.estado === 'activa') {
+                        const precio = planesMap[s.plan_id] || 0;
+                        mrr += precio;
+                        
+                        const venc = new Date(s.fecha_vencimiento);
+                        const paidDate = new Date(venc.setDate(venc.getDate() - 30)).toLocaleDateString();
+                        dailyRevenue[paidDate] = (dailyRevenue[paidDate] || 0) + precio;
+                    }
+                });
+                
+                document.getElementById('stat-ingresos').innerText = `S/. ${mrr.toFixed(2)}`;
+
+                let labels = Object.keys(dailyRevenue).sort();
+                if(labels.length > 7) labels = labels.slice(-7);
+                const data = labels.map(l => dailyRevenue[l]);
+                
+                if (revenueChartInstance) {
+                    revenueChartInstance.destroy();
+                }
+
+                const ctx = document.getElementById('revenueChart').getContext('2d');
+                revenueChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels.length > 0 ? labels : ['Semana Actual'],
+                        datasets: [{
+                            label: 'MRR Diario (S/.)',
+                            data: data.length > 0 ? data : [mrr],
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.15)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' }, beginAtZero: true },
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            } catch (e) {}
+        }
+
+        async function loadSaaS() {
+            try {
+                const planesRes = await fetch(`${API_USUARIOS}/usuarios/planes`, { headers: { 'Authorization': `Bearer ${token}` }});
+                planesCache = await planesRes.json();
+                const planesBody = document.getElementById('planes-tbody');
+                planesBody.innerHTML = '';
+                planesCache.forEach(p => {
+                    planesBody.innerHTML += `<tr>
+                        <td><strong>${p.nombre}</strong><br><span class="status-badge ${p.activo ? 'libre' : 'ocupado'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                        <td>S/. ${p.precio.toFixed(2)}</td>
+                        <td><span style="font-size:0.75rem;">${p.max_sedes} sedes<br>${p.max_operadores} op.</span></td>
+                        <td><button onclick='editPlan(${JSON.stringify(p)})' class="btn-action"><i class="fa-solid fa-pen"></i></button></td>
+                    </tr>`;
+                });
+                
+                const subsRes = await fetch(`${API_USUARIOS}/usuarios/suscripciones/todas`, { headers: { 'Authorization': `Bearer ${token}` }});
+                const subs = await subsRes.json();
+                const subsBody = document.getElementById('suscripciones-tbody');
+                subsBody.innerHTML = '';
+                
+                const activeSubsCount = subs.filter(s => s.estado === 'activa').length;
+                document.getElementById('badge-subs-count').innerText = `${activeSubsCount} activas (${subs.length} total)`;
+
+                if(subs.length === 0) subsBody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Sin membresías registradas.</td></tr>`;
+                subs.forEach(s => {
+                    const owner = propietariosCache.find(p => p.id === s.propietario_id);
+                    const ownerName = owner ? owner.nombre : `Prop #${s.propietario_id}`;
+                    const plan = planesCache.find(p => p.id === s.plan_id);
+                    const planName = plan ? plan.nombre : `Plan #${s.plan_id}`;
+
+                    const isActiva = s.estado === 'activa';
+                    const badgeClass = isActiva ? 'libre' : 'ocupado';
+
+                    subsBody.innerHTML += `<tr>
+                        <td><strong>${ownerName}</strong></td>
+                        <td>${planName}</td>
+                        <td><span style="font-size:0.8rem;">${new Date(s.fecha_vencimiento).toLocaleDateString()}</span></td>
+                        <td><span class="status-badge ${badgeClass}">${s.estado.toUpperCase()}</span></td>
+                        <td>
+                            ${isActiva 
+                                ? `<button onclick="toggleSubscriptionEstado(${s.id}, 'cancelada')" class="btn-action" style="color:#ef4444;" title="Suspender/Cancelar membresía">
+                                     <i class="fa-solid fa-ban"></i> Suspender
+                                   </button>`
+                                : `<button onclick="toggleSubscriptionEstado(${s.id}, 'activa')" class="btn-action" style="color:#10b981;" title="Reactivar membresía">
+                                     <i class="fa-solid fa-rotate-left"></i> Reactivar
+                                   </button>`
+                            }
+                            <button onclick="toggleSubscriptionEstado(${s.id}, 'activa', 30)" class="btn-action" title="Renovar +30 días">
+                                <i class="fa-solid fa-calendar-plus"></i> +30d
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+            } catch(e) {}
+        }
+
+        async function toggleSubscriptionEstado(subId, nuevoEstado, extenderDias = null) {
+            try {
+                const payload = { estado: nuevoEstado };
+                if (extenderDias) payload.extender_dias = extenderDias;
+
+                const response = await fetch(`${API_USUARIOS}/usuarios/suscripciones/${subId}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('Error al actualizar membresía');
+                showToast(extenderDias ? `Membresía #${subId} renovada +30 días` : `Membresía #${subId} cambiada a ${nuevoEstado}`);
+                await loadSaaS();
+                await loadRevenueChart();
+                await loadPropietarios();
+            } catch(e) {
+                showToast(e.message, true);
+            }
+        }
+
+        // --- GESTIÓN DE PROPIETARIOS ---
+        function editPropietario(p) {
+            document.getElementById('prop-id').value = p.id;
+            document.getElementById('prop-nombre').value = p.nombre;
+            document.getElementById('prop-email').value = p.email;
+            document.getElementById('prop-pass').removeAttribute('required');
+            document.getElementById('prop-estado-group').style.display = 'flex';
+            document.getElementById('prop-activo').value = p.activo ? 'true' : 'false';
+            document.getElementById('propietario-form-title').innerHTML = `<i class="fa-solid fa-user-pen"></i> Editar Propietario #${p.id}`;
+            document.getElementById('btn-prop-submit').innerText = "Guardar Cambios";
+            document.getElementById('btn-prop-cancel').style.display = 'block';
+        }
+
+        function cancelPropEdit() {
+            document.getElementById('form-propietario').reset();
+            document.getElementById('prop-id').value = '';
+            document.getElementById('prop-pass').setAttribute('required', 'true');
+            document.getElementById('prop-estado-group').style.display = 'none';
+            document.getElementById('propietario-form-title').innerHTML = `<i class="fa-solid fa-user-plus"></i> Registrar Propietario`;
+            document.getElementById('btn-prop-submit').innerText = "Registrar Propietario";
+            document.getElementById('btn-prop-cancel').style.display = 'none';
+        }
+
+        async function handlePropietario(e) {
+            e.preventDefault();
+            const id = document.getElementById('prop-id').value;
+            const nombre = document.getElementById('prop-nombre').value;
+            const email = document.getElementById('prop-email').value;
+            const password = document.getElementById('prop-pass').value;
+            const activo = document.getElementById('prop-activo').value === 'true';
+
+            const payload = { nombre, email };
+            if (password) payload.password = password;
+            if (id) payload.activo = activo;
+
+            try {
+                let response;
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+                if (id) {
+                    response = await fetch(`${API_USUARIOS}/usuarios/propietarios/${id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+                } else {
+                    if (!password) throw new Error("La contraseña es obligatoria.");
+                    payload.rol = "propietario";
+                    response = await fetch(`${API_USUARIOS}/usuarios/propietarios`, { method: 'POST', headers, body: JSON.stringify(payload) });
+                }
+                
+                if (!response.ok) { const err = await response.json(); throw new Error(err.detail); }
+                showToast(id ? 'Propietario actualizado' : 'Propietario registrado exitosamente');
+                cancelPropEdit();
+                await loadPropietarios();
+            } catch (err) { showToast(err.message, true); }
+        }
+
+        // --- GESTIÓN DE SEDES ---
+        function editSede(s) {
+            document.getElementById('sede-edit-id').value = s.id;
+            document.getElementById('sede-nombre').value = s.nombre;
+            document.getElementById('sede-direccion').value = s.direccion;
+            document.getElementById('sede-tarifa').value = s.tarifa_hora || 5.0;
+            document.getElementById('sede-propietario').value = s.propietario_id;
+            document.getElementById('sede-lat').value = s.latitud;
+            document.getElementById('sede-lon').value = s.longitud;
+            
+            if (pickerMarker) {
+                pickerMarker.setLatLng([s.latitud, s.longitud]);
+                pickerMap.setView([s.latitud, s.longitud], 15);
+            }
+
+            document.getElementById('sede-form-title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Editar Sede #${s.id}`;
+            document.getElementById('btn-sede-submit').innerText = "Guardar Cambios";
+            document.getElementById('btn-sede-cancel').style.display = 'block';
+        }
+
+        function cancelSedeEdit() {
+            document.getElementById('form-sede').reset();
+            document.getElementById('sede-edit-id').value = '';
+            document.getElementById('sede-form-title').innerHTML = `<i class="fa-solid fa-hotel"></i> Registrar Nueva Sede`;
+            document.getElementById('btn-sede-submit').innerText = "Crear Sede";
+            document.getElementById('btn-sede-cancel').style.display = 'none';
+        }
+
+        async function handleCreateSede(e) {
+            e.preventDefault();
+            const id = document.getElementById('sede-edit-id').value;
+            const nombre = document.getElementById('sede-nombre').value;
+            const direccion = document.getElementById('sede-direccion').value;
+            const latitud = parseFloat(document.getElementById('sede-lat').value);
+            const longitud = parseFloat(document.getElementById('sede-lon').value);
+            const propietario_id = parseInt(document.getElementById('sede-propietario').value);
+            const tarifa_hora = parseFloat(document.getElementById('sede-tarifa').value);
+
+            const payload = { nombre, direccion, latitud, longitud, propietario_id, tarifa_hora };
+
+            try {
+                let response;
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+                
+                if (id) {
+                    response = await fetch(`${API_ESTACIONAMIENTOS}/sedes/${id}`, {
+                        method: 'PUT', headers, body: JSON.stringify(payload)
+                    });
+                } else {
+                    response = await fetch(`${API_ESTACIONAMIENTOS}/sedes/`, {
+                        method: 'POST', headers, body: JSON.stringify(payload)
+                    });
+                }
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Error al guardar la sede');
+                }
+
+                showToast(id ? 'Sede actualizada correctamente' : 'Sede registrada exitosamente');
+                cancelSedeEdit();
+                await loadSedesAndStats();
+            } catch (err) { showToast(err.message, true); }
+        }
+
+        async function toggleSedeEstado(id, nuevoEstado) {
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/sedes/${id}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ activa: nuevoEstado })
+                });
+                if (!response.ok) throw new Error('Error al cambiar estado de la sede');
+                showToast(`Sede #${id} ${nuevoEstado ? 'activada' : 'desactivada'}`);
+                await loadSedesAndStats();
+            } catch(e) { showToast(e.message, true); }
+        }
+
+        // --- GESTIÓN DE PLANES SAAS ---
+        function editPlan(p) {
+            document.getElementById('plan-id').value = p.id;
+            document.getElementById('plan-nombre').value = p.nombre;
+            document.getElementById('plan-precio').value = p.precio;
+            document.getElementById('plan-sedes').value = p.max_sedes;
+            document.getElementById('plan-operadores').value = p.max_operadores;
+            document.getElementById('plan-activo-group').style.display = 'block';
+            document.getElementById('plan-activo').value = p.activo ? 'true' : 'false';
+            
+            document.getElementById('lbl-plan-form').innerText = `Editando Plan #${p.id} - ${p.nombre}`;
+            document.getElementById('btn-plan-submit').innerText = "Actualizar Plan";
+            document.getElementById('btn-plan-cancel').style.display = 'block';
+        }
+
+        function cancelPlanEdit() {
+            document.getElementById('form-plan').reset();
+            document.getElementById('plan-id').value = '';
+            document.getElementById('plan-activo-group').style.display = 'none';
+            document.getElementById('lbl-plan-form').innerText = "Crear / Modificar Plan";
+            document.getElementById('btn-plan-submit').innerText = "Guardar Plan";
+            document.getElementById('btn-plan-cancel').style.display = 'none';
+        }
+
+        async function handleSavePlan(e) {
+            e.preventDefault();
+            const id = document.getElementById('plan-id').value;
+            const nombre = document.getElementById('plan-nombre').value;
+            const precio = parseFloat(document.getElementById('plan-precio').value);
+            const max_sedes = parseInt(document.getElementById('plan-sedes').value);
+            const max_operadores = parseInt(document.getElementById('plan-operadores').value);
+            const activo = id ? (document.getElementById('plan-activo').value === 'true') : true;
+
+            const payload = { nombre, precio, max_sedes, max_operadores, activo };
+
+            try {
+                let response;
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+                
+                if (id) {
+                    response = await fetch(`${API_USUARIOS}/usuarios/planes/${id}`, {
+                        method: 'PUT', headers, body: JSON.stringify(payload)
+                    });
+                } else {
+                    response = await fetch(`${API_USUARIOS}/usuarios/planes`, {
+                        method: 'POST', headers, body: JSON.stringify(payload)
+                    });
+                }
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Error al guardar plan');
+                }
+
+                showToast(id ? 'Plan actualizado' : 'Plan creado exitosamente');
+                cancelPlanEdit();
+                await loadSaaS();
+                await loadRevenueChart();
+            } catch (err) {}
+        }
+
+        // ================= FILTROS DE BÚSQUEDA EN VIVO =================
+        function filterSedesTable() {
+            const query = (document.getElementById('search-sedes').value || '').toLowerCase();
+            const rows = document.querySelectorAll('#sedes-tbody tr');
+            rows.forEach(tr => {
+                const text = tr.innerText.toLowerCase();
+                tr.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function filterPropietariosTable() {
+            const query = (document.getElementById('search-propietarios').value || '').toLowerCase();
+            const rows = document.querySelectorAll('#propietarios-tbody tr');
+            rows.forEach(tr => {
+                const text = tr.innerText.toLowerCase();
+                tr.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function filterReservasTable() {
+            const query = (document.getElementById('search-reservas').value || '').toLowerCase().trim();
+            const sedeFiltro = document.getElementById('filter-reservas-sede') ? document.getElementById('filter-reservas-sede').value : '';
+            const estadoFiltro = document.getElementById('filter-reservas-estado') ? document.getElementById('filter-reservas-estado').value.toLowerCase() : '';
+
+            const filtradas = reservasCache.filter(r => {
+                // Filtro por Sede / Estacionamiento
+                if (sedeFiltro && r.sede_id !== parseInt(sedeFiltro)) {
+                    return false;
+                }
+                // Filtro por Estado
+                if (estadoFiltro && (r.estado || '').toLowerCase() !== estadoFiltro) {
+                    return false;
+                }
+                // Filtro por Texto (Placa, ID, Sede)
+                if (query) {
+                    const matchId = (`${r.id}` || '').includes(query);
+                    const matchPlaca = (r.placa_vehiculo || '').toLowerCase().includes(query);
+                    const matchSede = (r.sede_nombre || '').toLowerCase().includes(query);
+                    const matchEspacio = (r.espacio_numero || '').toLowerCase().includes(query);
+                    if (!matchId && !matchPlaca && !matchSede && !matchEspacio) return false;
+                }
+                return true;
+            });
+
+            renderReservasTable(filtradas);
+            const badge = document.getElementById('badge-reservas-count');
+            if (badge) badge.innerText = `${filtradas.length} reservas`;
+        }
+
+        // Obtener la lista actual filtrada para los reportes
+        function getFilteredReservas() {
+            const query = (document.getElementById('search-reservas').value || '').toLowerCase().trim();
+            const sedeFiltro = document.getElementById('filter-reservas-sede') ? document.getElementById('filter-reservas-sede').value : '';
+            const estadoFiltro = document.getElementById('filter-reservas-estado') ? document.getElementById('filter-reservas-estado').value.toLowerCase() : '';
+
+            return reservasCache.filter(r => {
+                if (sedeFiltro && r.sede_id !== parseInt(sedeFiltro)) return false;
+                if (estadoFiltro && (r.estado || '').toLowerCase() !== estadoFiltro) return false;
+                if (query) {
+                    const matchId = (`${r.id}` || '').includes(query);
+                    const matchPlaca = (r.placa_vehiculo || '').toLowerCase().includes(query);
+                    const matchSede = (r.sede_nombre || '').toLowerCase().includes(query);
+                    const matchEspacio = (r.espacio_numero || '').toLowerCase().includes(query);
+                    if (!matchId && !matchPlaca && !matchSede && !matchEspacio) return false;
+                }
+                return true;
+            });
+        }
+
+        // ================= EXPORTADOR A EXCEL Y CSV =================
+        function downloadExcel(filename, sheetName, headers, rows) {
+            try {
+                if (typeof XLSX === 'undefined') throw new Error('Biblioteca XLSX no cargada');
+                const wb = XLSX.utils.book_new();
+                const wsData = [headers, ...rows];
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                XLSX.utils.book_append_sheet(wb, ws, sheetName || 'Datos');
+                XLSX.writeFile(wb, filename);
+                showToast(`Archivo Excel (.xlsx) generado exitosamente`);
+            } catch (err) {
+                console.error("Error al exportar a Excel, usando fallback CSV:", err);
+                downloadCSV(filename.replace(/\.xlsx$/i, '.csv'), [headers, ...rows]);
+            }
+        }
+
+        function downloadCSV(filename, rows) {
+            const processRow = (row) => row.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(',');
+            const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + rows.map(processRow).join('\r\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportSedesExcel() {
+            if (!sedesCache || sedesCache.length === 0) return showToast('No hay sedes para exportar', true);
+            const headers = ['ID', 'Nombre', 'Dirección', 'Tarifa_Hora', 'Latitud', 'Longitud', 'Propietario_ID', 'Estado'];
+            const data = sedesCache.map(s => [
+                s.id, s.nombre, s.direccion, s.tarifa_hora || 5.0, s.latitud, s.longitud, s.propietario_id, s.activa ? 'Activa' : 'Inactiva'
+            ]);
+            downloadExcel(`SmartPark_Sedes_${new Date().toISOString().slice(0,10)}.xlsx`, 'Sedes', headers, data);
+        }
+
+        function exportSedesCSV() {
+            if (!sedesCache || sedesCache.length === 0) return showToast('No hay sedes para exportar', true);
+            const headers = ['ID', 'Nombre', 'Dirección', 'Tarifa_Hora', 'Latitud', 'Longitud', 'Propietario_ID', 'Estado'];
+            const data = sedesCache.map(s => [
+                s.id, s.nombre, s.direccion, s.tarifa_hora || 5.0, s.latitud, s.longitud, s.propietario_id, s.activa ? 'Activa' : 'Inactiva'
+            ]);
+            downloadCSV(`SmartPark_Sedes_${new Date().toISOString().slice(0,10)}.csv`, [headers, ...data]);
+            showToast('Archivo CSV de sedes exportado');
+        }
+
+        function exportPropietariosExcel() {
+            if (!propietariosCache || propietariosCache.length === 0) return showToast('No hay propietarios para exportar', true);
+            const headers = ['ID', 'Nombre', 'Email', 'Estado_Cuenta'];
+            const data = propietariosCache.map(p => [
+                p.id, p.nombre, p.email, p.activo ? 'Activo' : 'Bloqueado'
+            ]);
+            downloadExcel(`SmartPark_Propietarios_${new Date().toISOString().slice(0,10)}.xlsx`, 'Propietarios', headers, data);
+        }
+
+        function exportPropietariosCSV() {
+            if (!propietariosCache || propietariosCache.length === 0) return showToast('No hay propietarios para exportar', true);
+            const headers = ['ID', 'Nombre', 'Email', 'Estado_Cuenta'];
+            const data = propietariosCache.map(p => [
+                p.id, p.nombre, p.email, p.activo ? 'Activo' : 'Bloqueado'
+            ]);
+            downloadCSV(`SmartPark_Propietarios_${new Date().toISOString().slice(0,10)}.csv`, [headers, ...data]);
+            showToast('Archivo CSV de propietarios exportado');
+        }
+
+        function exportReservasExcel() {
+            const dataReservas = getFilteredReservas();
+            if (dataReservas.length === 0) return showToast('Sin reservas para exportar', true);
+            
+            const sedeSel = document.getElementById('filter-reservas-sede');
+            const sedeTexto = (sedeSel && sedeSel.value) ? sedeSel.options[sedeSel.selectedIndex].text.replace(/^[^\w]+/, '').trim() : 'Todas';
+
+            const headers = ['ID_Reserva', 'Estacionamiento', 'Espacio', 'Placa_Vehiculo', 'Fecha_Inicio', 'Fecha_Fin', 'Estado'];
+            const data = dataReservas.map(r => [
+                r.id,
+                r.sede_nombre || 'Sede General',
+                r.espacio_numero || `#${r.espacio_id}`,
+                r.placa_vehiculo || 'N/A',
+                r.fecha_inicio ? r.fecha_inicio.replace('T', ' ').slice(0, 19) : '',
+                r.fecha_fin ? r.fecha_fin.replace('T', ' ').slice(0, 19) : '',
+                (r.estado || '').toUpperCase()
+            ]);
+            downloadExcel(`SmartPark_Reservas_${sedeTexto}_${new Date().toISOString().slice(0,10)}.xlsx`, 'Reservas', headers, data);
+        }
+
+        function exportReservasCSV() {
+            const dataReservas = getFilteredReservas();
+            if (dataReservas.length === 0) return showToast('Sin reservas para exportar', true);
+            
+            const sedeSel = document.getElementById('filter-reservas-sede');
+            const sedeTexto = (sedeSel && sedeSel.value) ? sedeSel.options[sedeSel.selectedIndex].text.replace(/^[^\w]+/, '').trim() : 'Todas';
+
+            const headers = ['ID_Reserva', 'Estacionamiento', 'Espacio', 'Placa_Vehiculo', 'Fecha_Inicio', 'Fecha_Fin', 'Estado'];
+            const data = dataReservas.map(r => [
+                r.id,
+                r.sede_nombre || 'Sede General',
+                r.espacio_numero || `#${r.espacio_id}`,
+                r.placa_vehiculo || 'N/A',
+                r.fecha_inicio ? r.fecha_inicio.replace('T', ' ').slice(0, 19) : '',
+                r.fecha_fin ? r.fecha_fin.replace('T', ' ').slice(0, 19) : '',
+                (r.estado || '').toUpperCase()
+            ]);
+            downloadCSV(`SmartPark_Reservas_${sedeTexto}_${new Date().toISOString().slice(0,10)}.csv`, [headers, ...data]);
+            showToast('Archivo CSV de reservas exportado');
+        }
+
+        // ================= GESTIÓN Y AUDITORÍA DE PAGOS =================
+        let pagosCache = [];
+
+        async function loadPagosGlobales() {
+            try {
+                const res = await fetch(`${API_PAGOS}/pagos/`);
+                if (!res.ok) throw new Error('Error al consultar transacciones');
+                pagosCache = await res.json();
+
+                const tbody = document.getElementById('pagos-tbody');
+                tbody.innerHTML = '';
+
+                // Métricas KPI
+                const totalCount = pagosCache.length;
+                let aprobadosCount = 0;
+                let pendientesCount = 0;
+                let totalMonto = 0;
+
+                document.getElementById('badge-pagos-count').innerText = `${totalCount} pagos`;
+                document.getElementById('stat-pagos-count').innerText = totalCount;
+
+                if (totalCount === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay transacciones registradas en el sistema.</td></tr>';
+                    document.getElementById('stat-pagos-aprobados').innerText = '0';
+                    document.getElementById('stat-pagos-pendientes').innerText = '0';
+                    document.getElementById('stat-pagos-monto').innerText = 'S/. 0.00';
+                    return;
+                }
+
+                pagosCache.forEach(p => {
+                    const montoNum = parseFloat(p.monto) || 0;
+                    totalMonto += montoNum;
+                    
+                    const estadoLower = (p.estado || '').toLowerCase();
+                    if (estadoLower === 'completado' || estadoLower === 'aprobado' || estadoLower === 'exitoso') {
+                        aprobadosCount++;
+                    } else {
+                        pendientesCount++;
+                    }
+
+                    let badgeClass = 'reservado';
+                    if (estadoLower === 'completado' || estadoLower === 'aprobado' || estadoLower === 'exitoso') badgeClass = 'libre';
+                    if (estadoLower === 'fallido' || estadoLower === 'cancelado') badgeClass = 'ocupado';
+
+                    const fechaFormateada = p.fecha_pago ? new Date(p.fecha_pago).toLocaleString('es-PE') : 'Fecha no reg.';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>#TX-${p.id}</strong></td>
+                        <td><span style="color:var(--text-muted);">Reserva</span> <strong>#${p.reserva_id}</strong></td>
+                        <td><span style="color:#10b981; font-weight:700;">S/. ${montoNum.toFixed(2)}</span></td>
+                        <td>
+                            <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; text-transform:capitalize;">
+                                <i class="fa-solid ${p.metodo_pago === 'yape' || p.metodo_pago === 'plin' ? 'fa-mobile-screen-button' : (p.metodo_pago === 'efectivo' ? 'fa-money-bill-1' : 'fa-credit-card')}" style="color:var(--accent);"></i>
+                                ${p.metodo_pago || 'Tarjeta'}
+                            </span>
+                        </td>
+                        <td style="font-size:0.85rem; color:var(--text-muted);">${fechaFormateada}</td>
+                        <td><span class="status-badge ${badgeClass}">${p.estado ? p.estado.toUpperCase() : 'PENDIENTE'}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById('stat-pagos-aprobados').innerText = aprobadosCount;
+                document.getElementById('stat-pagos-pendientes').innerText = pendientesCount;
+                document.getElementById('stat-pagos-monto').innerText = `S/. ${totalMonto.toFixed(2)}`;
+            } catch(e) {
+                console.error("Error al cargar pagos:", e);
+                const tbody = document.getElementById('pagos-tbody');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#ef4444;">Error al cargar transacciones: ${e.message}</td></tr>`;
+            }
+        }
+
+        function filterPagosTable() {
+            const query = (document.getElementById('search-pagos').value || '').toLowerCase();
+            const rows = document.querySelectorAll('#pagos-tbody tr');
+            rows.forEach(tr => {
+                const text = tr.innerText.toLowerCase();
+                tr.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function exportPagosExcel() {
+            if (!pagosCache || pagosCache.length === 0) return showToast('No hay transacciones para exportar', true);
+            const headers = ['ID_Transaccion', 'Reserva_ID', 'Monto', 'Metodo_Pago', 'Fecha_Pago', 'Estado'];
+            const data = pagosCache.map(p => [
+                p.id, p.reserva_id, parseFloat(p.monto) || 0, p.metodo_pago || 'tarjeta', p.fecha_pago ? new Date(p.fecha_pago).toLocaleString('es-PE') : '', p.estado || 'pendiente'
+            ]);
+            downloadExcel(`SmartPark_Transacciones_${new Date().toISOString().slice(0,10)}.xlsx`, 'Transacciones', headers, data);
+        }
+
+        function exportPagosCSV() {
+            if (!pagosCache || pagosCache.length === 0) return showToast('No hay transacciones para exportar', true);
+            const headers = ['ID_Transaccion', 'Reserva_ID', 'Monto', 'Metodo_Pago', 'Fecha_Pago', 'Estado'];
+            const data = pagosCache.map(p => [
+                p.id, p.reserva_id, p.monto, p.metodo_pago || 'tarjeta', p.fecha_pago || '', p.estado || 'pendiente'
+            ]);
+            downloadCSV(`SmartPark_Transacciones_${new Date().toISOString().slice(0,10)}.csv`, [headers, ...data]);
+            showToast('Archivo CSV de transacciones exportado');
+        }
+    </script>
+</body>
+</html>

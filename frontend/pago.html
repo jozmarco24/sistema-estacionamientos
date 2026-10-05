@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procesar Pago | SmartPark</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #0f172a 100%);
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #38bdf8;
+            --text-light: #f8fafc;
+            --glass-bg: rgba(17, 24, 39, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --success-color: #10b981;
+        }
+
+        body.light-mode {
+            --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --glass-bg: #ffffff;
+            --glass-border: #e2e8f0;
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #0284c7;
+            --text-light: #0f172a;
+        }
+
+        body.light-mode .payment-card {
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            border-color: #e2e8f0;
+            color: #0f172a;
+        }
+        body.light-mode .title, body.light-mode .timer-label {
+            color: #0f172a;
+        }
+        body.light-mode .amount-box {
+            background: rgba(6, 182, 212, 0.08);
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+        body.light-mode .receipt-details {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        body.light-mode .receipt-row span:first-child {
+            color: #64748b;
+        }
+        body.light-mode .receipt-row span:last-child {
+            color: #0f172a;
+        }
+        body.light-mode .input-wrapper input {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        body.light-mode .method-btn {
+            background: #ffffff;
+            color: #475569;
+            border-color: #e2e8f0;
+        }
+        body.light-mode .timer-card {
+            background: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+        body.light-mode .success-overlay {
+            background: #ffffff;
+            color: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .theme-btn-float {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            padding: 8px 16px;
+            border-radius: 99px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .payment-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .invoice-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+        }
+
+        .receipt-details {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .receipt-row:last-child {
+            margin-bottom: 0;
+            padding-top: 12px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .receipt-label {
+            color: #94a3b8;
+        }
+
+        .receipt-value {
+            color: #f1f5f9;
+        }
+
+        .credit-card-form {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        /* ================= ESTILOS EMBEBIDOS CULQI IDENTICOS A LA IMAGEN ================= */
+        .culqi-card-widget {
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12), 0 5px 15px rgba(0, 0, 0, 0.06);
+            padding: 24px;
+            color: #1e293b;
+            text-align: left;
+            margin-top: 15px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .culqi-header-price {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 14px;
+            margin-bottom: 16px;
+        }
+
+        .culqi-label-price {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #64748b;
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .culqi-amount-price {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }
+
+        .culqi-tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .culqi-tab-btn {
+            flex: 1;
+            min-width: 90px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: left;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        .culqi-tab-btn:hover {
+            border-color: #cbd5e1;
+            background: #f1f5f9;
+        }
+
+        .culqi-tab-btn.active {
+            background: #fff9f5;
+            border: 1.5px solid #ff6a00;
+            box-shadow: 0 2px 8px rgba(255, 106, 0, 0.12);
+        }
+
+        .culqi-tab-btn .tab-icon {
+            font-size: 1.25rem;
+            color: #ff6a00;
+        }
+
+        .culqi-tab-btn .tab-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #334155;
+        }
+
+        .culqi-form-field {
+            margin-bottom: 15px;
+        }
+
+        .culqi-form-field label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .culqi-form-field input, .culqi-form-field select {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.95rem;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .culqi-form-field input:focus, .culqi-form-field select:focus {
+            border-color: #ff6a00;
+            box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.15);
+        }
+
+        .culqi-input-with-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .culqi-input-with-icon input {
+            padding-right: 75px;
+        }
+
+        .culqi-card-brands {
+            position: absolute;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+        }
+
+        .culqi-row-two {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .culqi-btn-pay {
+            width: 100%;
+            background: #ff5f00;
+            background: linear-gradient(135deg, #ff6a00 0%, #ee5100 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(238, 81, 0, 0.35);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .culqi-btn-pay:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(238, 81, 0, 0.45);
+        }
+
+        .culqi-btn-pay:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .culqi-secure-footer {
+            margin-top: 18px;
+            text-align: center;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 14px;
+        }
+
+        .culqi-secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .culqi-brand-seal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 0.8rem;
+        }
+
+        .culqi-logo-text {
+            font-weight: 800;
+            color: #0f172a;
+            font-size: 0.95rem;
+            letter-spacing: -0.5px;
+        }
+
+        .culqi-dot {
+            color: #ff6a00;
+        }
+
+        .culqi-credisello {
+            color: #64748b;
+            font-size: 0.75rem;
+            border-left: 1px solid #cbd5e1;
+            padding-left: 10px;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Éxito */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0b0f19;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        .success-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            color: var(--success-color);
+            margin-bottom: 24px;
+            animation: scaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes scaleUp {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            text-decoration: none;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+            background: #059669;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        /* Barra Temporizador Tipo Cine */
+        .seat-holding-timer {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(239, 68, 68, 0.15) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.15); }
+            50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.35); }
+            100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.15); }
+        }
+        .timer-info {
+            text-align: left;
+            font-size: 0.8rem;
+            color: #f8fafc;
+        }
+        .timer-digits {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #fbbf24;
+            font-variant-numeric: tabular-nums;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Botón de Alternancia de Tema -->
+    <button class="theme-btn-float" onclick="toggleTheme()" id="theme-btn">
+        <i class="fa-solid fa-sun"></i> Modo Claro
+    </button>
+
+    <div class="payment-card">
+        <!-- Banner Retención Tipo Cine -->
+        <div class="seat-holding-timer" id="seat-timer-box">
+            <div class="timer-info">
+                <strong style="color:#fbbf24;"><i class="fa-solid fa-lock"></i> Espacio Bloqueado Exclusivo</strong>
+                <p style="color:#94a3b8; font-size:0.75rem; margin-top:2px;">Tienes este tiempo para pagar antes de que se libere:</p>
+            </div>
+            <div class="timer-digits">
+                <i class="fa-regular fa-clock" style="font-size:1.1rem;"></i>
+                <span id="countdown-text">10:00</span>
+            </div>
+        </div>
+
+        <!-- Overlay Éxito -->
+        <div id="success-screen" class="success-overlay">
+            <h2 class="title" style="color:var(--success-color);">¡Ticket Generado!</h2>
+            <p style="color: #94a3b8; margin-bottom:20px;">Muestra este código al llegar a la caseta.</p>
+            <div style="background: #fff; padding: 15px; border-radius: 16px; margin-bottom: 20px;">
+                <img id="qr-code" src="" alt="QR Code" width="180" height="180">
+            </div>
+            <p style="color: var(--accent); font-weight:700; font-size:1.2rem; margin-bottom: 20px;" id="success-placa"></p>
+            <a href="dashboard.html" class="btn-success">Finalizar</a>
+        </div>
+
+        <i class="fa-solid fa-file-invoice-dollar invoice-icon"></i>
+        <h1 class="title">Procesar Pago</h1>
+        <p class="subtitle">Completa tu transacción para asegurar la reserva definitiva</p>
+
+        <!-- Banner de modo pruebas Culqi -->
+        <div style="background: rgba(14, 165, 233, 0.1); border: 1px dashed #38bdf8; border-radius: 12px; padding: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #bae6fd;">
+            <div style="font-weight: 700; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <i class="fa-solid fa-flask"></i> ENTORNO DE PRUEBAS SANDBOX (CULQI)
+            </div>
+            <div>Tarjetas de prueba oficiales: <strong>4111 1111 1111 1111</strong> (Aprobada) | CVV: <strong>123</strong> | Vence: <strong>Cualquier fecha futura</strong></div>
+        </div>
+
+        <div id="error-box" class="alert-error"></div>
+
+        <!-- TARJETA EMBEBIDA TIPO CULQI EXACTA A LA IMAGEN DEL USUARIO -->
+        <div class="culqi-card-widget">
+            <!-- Header con Precio Total -->
+            <div class="culqi-header-price">
+                <div class="culqi-label-price">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Precio total</span>
+                </div>
+                <div class="culqi-amount-price" id="culqi-display-total">S/ 0.00</div>
+            </div>
+
+            <!-- Tabs de Métodos de Pago Culqi -->
+            <div class="culqi-tabs-container">
+                <div class="culqi-tab-btn active" id="tab-tarjeta" onclick="selectCulqiTab('tarjeta')">
+                    <i class="fa-solid fa-credit-card tab-icon"></i>
+                    <div class="tab-label">Tarjeta débito / crédito</div>
+                </div>
+                <div class="culqi-tab-btn" id="tab-yape" onclick="selectCulqiTab('yape')">
+                    <i class="fa-solid fa-qrcode tab-icon" style="color: #8b5cf6;"></i>
+                    <div class="tab-label">Yape</div>
+                </div>
+                <div class="culqi-tab-btn" id="tab-billeteras" onclick="selectCulqiTab('billeteras')">
+                    <i class="fa-solid fa-wallet tab-icon" style="color: #06b6d4;"></i>
+                    <div class="tab-label">Billeteras móviles</div>
+                </div>
+                <div class="culqi-tab-btn" id="tab-banca" onclick="selectCulqiTab('banca')">
+                    <i class="fa-solid fa-building-columns tab-icon" style="color: #10b981;"></i>
+                    <div class="tab-label">Banca internet</div>
+                </div>
+            </div>
+
+            <!-- Panel 1: Formulario de Tarjeta -->
+            <form id="culqi-card-form" onsubmit="procesarPagoDirecto(event)">
+                <div class="culqi-form-field">
+                    <label>Número de tarjeta</label>
+                    <div class="culqi-input-with-icon">
+                        <input type="text" id="culqi-card-number" placeholder="9999 9999 9999 9999" maxlength="19" required oninput="formatCardNumber(this)">
+                        <div class="culqi-card-brands">
+                            <i class="fa-brands fa-cc-visa" style="color: #1a1f71; font-size: 1.4rem;"></i>
+                            <i class="fa-brands fa-cc-mastercard" style="color: #eb001b; font-size: 1.4rem;"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="culqi-row-two">
+                    <div class="culqi-form-field">
+                        <label>Vencimiento</label>
+                        <input type="text" id="culqi-card-exp" placeholder="MM/AA" maxlength="5" required oninput="formatExpiry(this)">
+                    </div>
+                    <div class="culqi-form-field">
+                        <label>Código de seguridad</label>
+                        <input type="password" id="culqi-card-cvv" placeholder="999" maxlength="4" required>
+                    </div>
+                </div>
+
+                <div class="culqi-form-field">
+                    <label>Número de cuotas</label>
+                    <select id="culqi-card-installments">
+                        <option value="1">Sin cuotas (1 pago)</option>
+                        <option value="2">2 cuotas</option>
+                        <option value="3">3 cuotas</option>
+                        <option value="6">6 cuotas</option>
+                        <option value="12">12 cuotas</option>
+                    </select>
+                </div>
+
+                <div class="culqi-form-field">
+                    <label>Correo electrónico</label>
+                    <input type="email" id="culqi-card-email" placeholder="correo@electronico.com" required>
+                </div>
+
+                <!-- Botón de Acción Naranja Idéntico a Culqi de la imagen -->
+                <button type="submit" class="culqi-btn-pay" id="btn-submit">
+                    <span id="btn-pay-text">Pagar S/ 0.00</span>
+                    <span id="btn-pay-spinner" class="loader" style="display:none;"></span>
+                </button>
+            </form>
+
+            <!-- Panel 2: Yape -->
+            <div id="culqi-yape-panel" style="display:none; text-align:center; padding: 20px 0;">
+                <div style="background:#702f8a; color:#fff; padding:16px; border-radius:14px; margin-bottom:15px; font-weight:700;">
+                    <i class="fa-solid fa-qrcode" style="font-size:1.6rem; display:block; margin-bottom:8px;"></i>
+                    Paga al instante con tu App Yape
+                </div>
+                <div class="culqi-form-field" style="text-align:left;">
+                    <label>Número de Celular Yape</label>
+                    <input type="text" id="yape-phone" placeholder="999 999 999" maxlength="9">
+                </div>
+                <div class="culqi-form-field" style="text-align:left;">
+                    <label>Código de Aprobación Yape (6 dígitos)</label>
+                    <input type="password" id="yape-code" placeholder="123456" maxlength="6">
+                </div>
+                <button type="button" class="culqi-btn-pay" style="background:#702f8a;" onclick="abrirCheckoutCulqi()">
+                    Abrir Checkout Oficial Culqi Yape
+                </button>
+            </div>
+
+            <!-- Panel 3: Billeteras / Banca -->
+            <div id="culqi-other-panel" style="display:none; text-align:center; padding: 20px 0;">
+                <p style="color:#64748b; font-size:0.9rem; margin-bottom:15px;">
+                    Puedes completar tu pago mediante la ventana modal segura oficial de Culqi.
+                </p>
+                <button type="button" class="culqi-btn-pay" onclick="abrirCheckoutCulqi()">
+                    <i class="fa-solid fa-lock"></i> Continuar con Pasarela Culqi
+                </button>
+            </div>
+
+            <!-- Footer con Sellos de Seguridad Culqi idénticos a la imagen -->
+            <div class="culqi-secure-footer">
+                <div class="culqi-secure-badge">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Compra segura con <strong>PCI</strong> y <strong>Verified by VISA</strong></span>
+                </div>
+                <div class="culqi-brand-seal">
+                    <span class="culqi-logo-text">Culqi <span class="culqi-dot">Q</span></span>
+                    <span class="culqi-credisello">Con el respaldo de <strong>BCP</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script oficial Culqi Checkout JS v4 -->
+    <script src="https://checkout.culqi.com/js/v4"></script>
+
+    <script>
+        const API_PAGOS = '/api/pagos';
+        const API_RESERVAS = '/api/reservas';
+        
+        // Obtener parámetros de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const ReservaId = parseInt(urlParams.get('reserva_id'));
+        const SuscripcionId = parseInt(urlParams.get('suscripcion_id'));
+
+        let pagoId = null;
+        let pagoMonto = 0;
+        let reservaData = null;
+        let timerInterval = null;
+        let timeLeftSeconds = 600; // 10 minutos estilo cine
+        let culqiPublicKey = null;
+
+        // Validar sesión
+        const token = localStorage.getItem('jwt_token');
+        if (!token || (!ReservaId && !SuscripcionId)) {
+            window.location.href = 'login.html';
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            updatePagoThemeBtn(isLight);
+        }
+
+        function updatePagoThemeBtn(isLight) {
+            const btn = document.getElementById('theme-btn');
+            if (btn) {
+                btn.innerHTML = isLight 
+                    ? '<i class="fa-solid fa-moon"></i> Modo Oscuro' 
+                    : '<i class="fa-solid fa-sun"></i> Modo Claro';
+            }
+        }
+
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            updatePagoThemeBtn(true);
+        } else {
+            updatePagoThemeBtn(false);
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (ReservaId) iniciarTemporizadorCine();
+            await fetchPagoDetails();
+            await configurarCulqi();
+        });
+
+        function iniciarTemporizadorCine() {
+            const storageKey = `timer_reserva_${ReservaId}`;
+            const storedTime = sessionStorage.getItem(storageKey);
+            
+            if (storedTime) {
+                const elapsed = Math.floor((Date.now() - parseInt(storedTime)) / 1000);
+                timeLeftSeconds = Math.max(0, 600 - elapsed);
+            } else {
+                sessionStorage.setItem(storageKey, Date.now().toString());
+            }
+
+            actualizarTextoTimer();
+            timerInterval = setInterval(() => {
+                timeLeftSeconds--;
+                if (timeLeftSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    tiempoExpirado();
+                } else {
+                    actualizarTextoTimer();
+                }
+            }, 1000);
+        }
+
+        function actualizarTextoTimer() {
+            const min = Math.floor(timeLeftSeconds / 60);
+            const sec = timeLeftSeconds % 60;
+            const text = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+            const el = document.getElementById('countdown-text');
+            if (el) el.innerText = text;
+
+            if (timeLeftSeconds < 120 && el) {
+                el.style.color = '#ef4444';
+            }
+        }
+
+        async function tiempoExpirado() {
+            document.getElementById('countdown-text').innerText = '00:00';
+            const errorBox = document.getElementById('error-box');
+            errorBox.innerText = '¡Tiempo expirado! Tu reserva temporal ha finalizado y el espacio ha sido liberado.';
+            errorBox.style.display = 'block';
+            document.getElementById('btn-submit').setAttribute('disabled', 'true');
+
+            try {
+                await fetch(`${API_RESERVAS}/reservas/${ReservaId}/expirar`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch(e) {}
+
+            setTimeout(() => {
+                alert('Tu tiempo de reserva ha expirado. Serás redirigido al panel principal.');
+                window.location.href = 'dashboard.html';
+            }, 2500);
+        }
+
+        function selectCulqiTab(tab) {
+            document.querySelectorAll('.culqi-tab-btn').forEach(btn => btn.classList.remove('active'));
+            const cardForm = document.getElementById('culqi-card-form');
+            const yapePanel = document.getElementById('culqi-yape-panel');
+            const otherPanel = document.getElementById('culqi-other-panel');
+
+            cardForm.style.display = 'none';
+            yapePanel.style.display = 'none';
+            otherPanel.style.display = 'none';
+
+            if (tab === 'tarjeta') {
+                document.getElementById('tab-tarjeta').classList.add('active');
+                cardForm.style.display = 'block';
+            } else if (tab === 'yape') {
+                document.getElementById('tab-yape').classList.add('active');
+                yapePanel.style.display = 'block';
+            } else if (tab === 'billeteras') {
+                document.getElementById('tab-billeteras').classList.add('active');
+                otherPanel.style.display = 'block';
+            } else if (tab === 'banca') {
+                document.getElementById('tab-banca').classList.add('active');
+                otherPanel.style.display = 'block';
+            }
+        }
+
+        function formatCardNumber(input) {
+            let val = input.value.replace(/\D/g, '');
+            val = val.substring(0, 16);
+            let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
+            input.value = formatted;
+        }
+
+        function formatExpiry(input) {
+            let val = input.value.replace(/\D/g, '');
+            if (val.length >= 2) {
+                input.value = val.substring(0, 2) + '/' + val.substring(2, 4);
+            } else {
+                input.value = val;
+            }
+        }
+
+        async function fetchPagoDetails() {
+            try {
+                let url = '';
+                if (ReservaId) {
+                    url = `${API_PAGOS}/pagos/reserva/${ReservaId}`;
+                } else {
+                    url = `${API_PAGOS}/pagos/suscripcion/${SuscripcionId}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('No se pudo encontrar la orden de pago');
+
+                const pagos = await response.json();
+                if (pagos.length === 0) throw new Error('No hay pagos pendientes');
+
+                const pago = pagos[0];
+                pagoId = pago.id;
+                pagoMonto = pago.monto;
+
+                if (ReservaId) {
+                    const resResp = await fetch(`${API_RESERVAS}/reservas/${ReservaId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (resResp.ok) reservaData = await resResp.json();
+                } else {
+                    document.getElementById('seat-timer-box').style.display = 'none';
+                }
+
+                const formattedTotal = `S/ ${pago.monto.toFixed(2)}`;
+                const dispTotal = document.getElementById('culqi-display-total');
+                if (dispTotal) dispTotal.innerText = formattedTotal;
+                
+                const btnText = document.getElementById('btn-pay-text');
+                if (btnText) btnText.innerText = `Pagar ${formattedTotal}`;
+
+            } catch (err) {
+                document.getElementById('error-box').innerText = err.message;
+                document.getElementById('error-box').style.display = 'block';
+                document.getElementById('btn-submit').setAttribute('disabled', 'true');
+            }
+        }
+
+        async function configurarCulqi() {
+            try {
+                if (!pagoId) return;
+                const url = `${API_PAGOS}/pagos/config-publica?pago_id=${pagoId}`;
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const config = await res.json();
+                if (!res.ok) {
+                    throw new Error(config.detail || 'No se pudo cargar la configuración de Culqi');
+                }
+                culqiPublicKey = config.public_key;
+
+                if (window.Culqi) {
+                    window.Culqi.publicKey = culqiPublicKey;
+                }
+            } catch (err) {
+                console.error("Error config Culqi:", err);
+                const errorBox = document.getElementById('error-box');
+                if (errorBox) {
+                    errorBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> Aviso de Pasarela:</strong> ${err.message}`;
+                    errorBox.style.display = 'block';
+                }
+                const btnSubmit = document.getElementById('btn-submit');
+                if (btnSubmit) {
+                    btnSubmit.disabled = true;
+                    const btnPayText = document.getElementById('btn-pay-text');
+                    if (btnPayText) btnPayText.innerText = 'Cobro no disponible temporalmente';
+                }
+            }
+        }
+
+        async function procesarPagoDirecto(event) {
+            event.preventDefault();
+            if (!pagoId) return alert('No hay orden de pago activa');
+            if (ReservaId && timeLeftSeconds <= 0) return alert('El tiempo de reserva ha expirado.');
+
+            if (!culqiPublicKey) {
+                return alert('Cargando pasarela Culqi... intenta nuevamente en un momento.');
+            }
+
+            const rawCardNumber = document.getElementById('culqi-card-number').value.replace(/\s+/g, '');
+            const rawExp = document.getElementById('culqi-card-exp').value;
+            const cvv = document.getElementById('culqi-card-cvv').value;
+            const email = document.getElementById('culqi-card-email').value;
+
+            if (rawCardNumber.length < 13 || rawCardNumber.length > 19) {
+                return alert('Por favor ingresa un número de tarjeta válido');
+            }
+            const expParts = rawExp.split('/');
+            if (expParts.length !== 2) {
+                return alert('Fecha de vencimiento inválida. Formato MM/AA');
+            }
+            const expMonth = parseInt(expParts[0]);
+            let expYear = parseInt(expParts[1]);
+            if (expYear < 100) expYear += 2000;
+
+            const btnSubmit = document.getElementById('btn-submit');
+            const btnPayText = document.getElementById('btn-pay-text');
+            const btnPaySpinner = document.getElementById('btn-pay-spinner');
+            
+            btnSubmit.disabled = true;
+            btnPayText.style.display = 'none';
+            btnPaySpinner.style.display = 'inline-block';
+
+            try {
+                // 1. Crear Token con Culqi API Token Directo
+                const tokenResp = await fetch('https://secure.culqi.com/v2/tokens', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${culqiPublicKey}`
+                    },
+                    body: JSON.stringify({
+                        card_number: rawCardNumber,
+                        cvv: cvv,
+                        expiration_month: expMonth,
+                        expiration_year: expYear,
+                        email: email
+                    })
+                });
+
+                const tokenData = await tokenResp.json();
+                if (!tokenResp.ok) {
+                    const errDetail = tokenData.user_message || tokenData.merchant_message || 'Tarjeta declinada o datos incorrectos';
+                    throw new Error(errDetail);
+                }
+
+                const tokenId = tokenData.id;
+
+                // 2. Ejecutar cobro con nuestro backend en microservicio pagos
+                const cobroResp = await fetch(`${API_PAGOS}/pagos/culqi/cobrar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        pago_id: pagoId,
+                        token_id: tokenId,
+                        email: email
+                    })
+                });
+
+                const cobroData = await cobroResp.json();
+                if (!cobroResp.ok) {
+                    throw new Error(cobroData.detail || 'Ocurrió un error al procesar el cobro');
+                }
+
+                // Cobro exitoso: detener temporizador y mostrar QR
+                if (timerInterval) clearInterval(timerInterval);
+                sessionStorage.removeItem(`timer_reserva_${ReservaId}`);
+                const timerBox = document.getElementById('seat-timer-box');
+                if (timerBox) timerBox.style.display = 'none';
+
+                const placa = reservaData ? reservaData.placa_vehiculo : 'REGISTRADA';
+                const qrData = JSON.stringify({
+                    reserva_id: ReservaId,
+                    pago_id: pagoId,
+                    charge_id: cobroData.culqi_charge_id,
+                    placa: placa
+                });
+                document.getElementById('qr-code').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+                document.getElementById('success-placa').innerText = `Placa: ${placa}`;
+
+                document.getElementById('success-screen').classList.add('active');
+
+            } catch (err) {
+                const errorBox = document.getElementById('error-box');
+                errorBox.innerText = `Error Culqi: ${err.message}`;
+                errorBox.style.display = 'block';
+                btnSubmit.disabled = false;
+                btnPayText.style.display = 'inline-block';
+                btnPaySpinner.style.display = 'none';
+            }
+        }
+
+        function abrirCheckoutCulqi() {
+            if (!pagoId) {
+                alert('No hay orden de pago activa');
+                return;
+            }
+            if (ReservaId && timeLeftSeconds <= 0) {
+                alert('El tiempo de reserva ha expirado.');
+                return;
+            }
+
+            if (!window.Culqi || !culqiPublicKey) {
+                alert('El servicio Culqi aún está cargando. Espere un segundo y reintente.');
+                return;
+            }
+
+            const montoCentimos = Math.round(pagoMonto * 100);
+
+            window.Culqi.publicKey = culqiPublicKey;
+            window.Culqi.settings({
+                title: 'SmartPark Parking',
+                currency: 'PEN',
+                amount: montoCentimos,
+                description: ReservaId ? `Reserva #${ReservaId}` : `Suscripción #${SuscripcionId}`
+            });
+
+            window.Culqi.options({
+                lang: 'auto',
+                installments: false,
+                modal: true,
+                paymentMethods: {
+                    tarjeta: true,
+                    yape: true,
+                    billetera: true,
+                    bancaMovil: false,
+                    agente: false,
+                    cuotealo: false
+                }
+            });
+
+            window.Culqi.open();
+        }
+
+        // Callback oficial invocado por Culqi Checkout Modal
+        window.culqi = async function() {
+            if (window.Culqi.token) {
+                const tokenId = window.Culqi.token.id;
+                const emailCliente = window.Culqi.token.email || 'cliente@smartpark.com';
+                window.Culqi.close();
+
+                const btnSubmit = document.getElementById('btn-submit');
+                btnSubmit.disabled = true;
+                const btnPayText = document.getElementById('btn-pay-text');
+                const btnPaySpinner = document.getElementById('btn-pay-spinner');
+                if (btnPayText) btnPayText.innerText = 'Procesando con Culqi...';
+                if (btnPaySpinner) btnPaySpinner.style.display = 'inline-block';
+
+                try {
+                    const response = await fetch(`${API_PAGOS}/pagos/culqi/cobrar`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            pago_id: pagoId,
+                            token_id: tokenId,
+                            email: emailCliente
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Ocurrió un error al procesar el cobro');
+                    }
+
+                    if (timerInterval) clearInterval(timerInterval);
+                    sessionStorage.removeItem(`timer_reserva_${ReservaId}`);
+                    const timerBox = document.getElementById('seat-timer-box');
+                    if (timerBox) timerBox.style.display = 'none';
+
+                    const placa = reservaData ? reservaData.placa_vehiculo : 'REGISTRADA';
+                    const qrData = JSON.stringify({
+                        reserva_id: ReservaId,
+                        pago_id: pagoId,
+                        charge_id: data.culqi_charge_id,
+                        placa: placa
+                    });
+                    document.getElementById('qr-code').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+                    document.getElementById('success-placa').innerText = `Placa: ${placa}`;
+
+                    document.getElementById('success-screen').classList.add('active');
+
+                } catch (err) {
+                    const errorBox = document.getElementById('error-box');
+                    errorBox.innerText = `Error Culqi: ${err.message}`;
+                    errorBox.style.display = 'block';
+                    btnSubmit.disabled = false;
+                    if (btnPayText) btnPayText.innerText = `Pagar S/ ${pagoMonto.toFixed(2)}`;
+                    if (btnPaySpinner) btnPaySpinner.style.display = 'none';
+                }
+            } else if (window.Culqi.error) {
+                console.error("Culqi Checkout error:", window.Culqi.error);
+                alert(window.Culqi.error.user_message || 'Error en el checkout de Culqi');
+            }
+        };
+    </script>
+</body>
+</html>

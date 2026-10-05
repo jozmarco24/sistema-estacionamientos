@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Operador de Caseta | SmartPark Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --sidebar-bg: rgba(15, 23, 42, 0.85);
+            --glass-bg: rgba(30, 41, 59, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            --color-libre: #10b981;
+            --color-ocupado: #ef4444;
+            --color-reservado: #f59e0b;
+        }
+
+        body.light-mode {
+            --bg-color: #f8fafc; 
+            --sidebar-bg: rgba(255, 255, 255, 0.95); 
+            --glass-bg: #ffffff;
+            --glass-border: #e2e8f0; 
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #0284c7;
+            --text-main: #0f172a; 
+            --text-muted: #64748b;
+        }
+        body.light-mode .nav-item { color: #64748b; }
+        body.light-mode .nav-item:hover { background: #f1f5f9; color: #0f172a; }
+        body.light-mode .card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+        }
+        body.light-mode .card-title, body.light-mode td { color: #0f172a; }
+        body.light-mode th { 
+            background: #f8fafc; 
+            color: #64748b; 
+            border-bottom-color: #e2e8f0; 
+        }
+        body.light-mode td { border-bottom-color: #f1f5f9; }
+        body.light-mode .form-group input, body.light-mode .form-group select, body.light-mode .form-group textarea { 
+            background: #fff; 
+            color: #0f172a; 
+            border-color: #cbd5e1; 
+        }
+        body.light-mode .slot-card { 
+            background: #ffffff; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+            border-color: #e2e8f0; 
+        }
+        body.light-mode .slot-card .slot-num { color: #0f172a; }
+        body.light-mode .stat-box { background: #ffffff; border: 1px solid #e2e8f0; }
+        body.light-mode .btn-action {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        body.light-mode .btn-action:hover { background: #e2e8f0; }
+        body.light-mode .modal-card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+        }
+        body.light-mode .modal-header h3 { color: #0f172a; }
+        body.light-mode #qr-resultado {
+            background: #f8fafc !important;
+            border-color: #e2e8f0 !important;
+            color: #0f172a !important;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.08) 0px, transparent 50%);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 18px;
+            z-index: 100;
+        }
+
+        .logo-area {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+        }
+        .logo-area i { color: #0284c7; -webkit-text-fill-color: initial; }
+
+        .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .nav-item {
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-main); }
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(2,132,199,0.18) 0%, rgba(2,132,199,0.03) 100%);
+            color: var(--primary);
+            border-left: 3px solid var(--primary);
+            font-weight: 600;
+        }
+        .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; }
+
+        .nav-divider {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 14px 12px 4px 12px;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .logout-btn { margin-top: auto; color: #ef4444 !important; }
+        .logout-btn:hover { background: rgba(239,68,68,0.1) !important; }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .greeting h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .greeting p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* KPIs de Caseta */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .stat-box { 
+            background: rgba(15, 23, 42, 0.4); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 16px; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+        }
+        .stat-box.libre { border-bottom: 3px solid var(--color-libre); }
+        .stat-box.ocupado { border-bottom: 3px solid var(--color-ocupado); }
+        .stat-box.reservado { border-bottom: 3px solid var(--color-reservado); }
+        .stat-box.ingresos { border-bottom: 3px solid var(--accent); }
+        .stat-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; }
+
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e2e8f0;
+        }
+
+        .quick-actions-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn-quick {
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        .btn-quick.primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3);
+        }
+        .btn-quick.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .btn-quick.accent {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
+        .btn-quick:hover { transform: translateY(-2px); }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1.2fr;
+            gap: 22px;
+        }
+
+        /* Slots Grid */
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 14px;
+        }
+        .slot-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 18px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .slot-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .slot-card.libre { border-color: var(--color-libre); background: linear-gradient(180deg, rgba(16,185,129,0.12) 0%, rgba(15,23,42,0.6) 100%); }
+        .slot-card.ocupado { border-color: var(--color-ocupado); background: linear-gradient(180deg, rgba(239,68,68,0.12) 0%, rgba(15,23,42,0.6) 100%); }
+        .slot-card.reservado { border-color: var(--color-reservado); background: linear-gradient(180deg, rgba(245,158,11,0.12) 0%, rgba(15,23,42,0.6) 100%); }
+        .slot-card .slot-num { font-size: 1.35rem; font-weight: 800; color: #fff; }
+        .slot-card .slot-status { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .slot-card.libre .slot-status { color: var(--color-libre); }
+        .slot-card.ocupado .slot-status { color: var(--color-ocupado); }
+        .slot-card.reservado .slot-status { color: var(--color-reservado); }
+
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 12px 14px; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 12px 14px; font-size: 0.9rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); color: #e2e8f0; vertical-align: middle; }
+
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+        .status-badge.libre { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-badge.ocupado { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .status-badge.reservado { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .form-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .form-group input, .form-group select, .form-group textarea {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+
+        .btn-submit {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-action {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-action:hover { background: rgba(255,255,255,0.12); }
+
+        .alert-toast {
+            position: fixed; top: 20px; right: 20px; z-index: 3000;
+            background: rgba(16, 185, 129, 0.95); color: #fff;
+            padding: 14px 22px; border-radius: 12px; display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4); font-weight: 500;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-card {
+            background: var(--bg-color); border: 1px solid var(--glass-border);
+            border-radius: 18px; width: 440px; max-width: 90%; padding: 24px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5); position: relative;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 18px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Operador -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo-area"><i class="fa-solid fa-parking"></i> SmartPark Caseta</div>
+        <ul class="nav-menu">
+            <a href="admin.html" id="operador-back-admin" class="nav-item" style="display:none; background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(3, 105, 161, 0.2) 100%); color: var(--accent); border: 1px solid rgba(2, 132, 199, 0.4);"><i class="fa-solid fa-arrow-left"></i> Volver a Admin</a>
+            
+            <div class="nav-divider">Operaciones</div>
+            <a href="#" class="nav-item active"><i class="fa-solid fa-table-cells"></i> Control de Caseta</a>
+            <a href="dashboard.html" class="nav-item"><i class="fa-solid fa-map-location-dot"></i> Vista Conductor</a>
+            
+            <a href="#" class="nav-item logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Turno</a>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div id="alert-toast" class="alert-toast">Acción completada con éxito.</div>
+
+        <div class="top-header">
+            <div class="greeting">
+                <h1 id="sede-nombre">Cargando Sede...</h1>
+                <p id="sede-direccion"><i class="fa-solid fa-map-pin"></i> ... <span id="sede-tarifa" style="color:var(--accent); font-weight:700; margin-left:8px;">S/. 0.00 / hr</span></p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="refreshAll()" class="btn-action" title="Actualizar datos"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+                <button onclick="toggleTheme()" id="theme-btn" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 10px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem;">
+                    <i class="fa-solid fa-sun"></i> Modo Claro
+                </button>
+            </div>
+        </div>
+
+        <!-- KPIs del Turno -->
+        <div class="stats-row">
+            <div class="stat-box libre">
+                <span class="stat-label">Cajones Libres</span>
+                <span class="stat-value" id="stat-libres" style="color: var(--color-libre);">0</span>
+            </div>
+            <div class="stat-box ocupado">
+                <span class="stat-label">Vehículos Dentro</span>
+                <span class="stat-value" id="stat-ocupados" style="color: var(--color-ocupado);">0</span>
+            </div>
+            <div class="stat-box reservado">
+                <span class="stat-label">Reservas Pendientes</span>
+                <span class="stat-value" id="stat-reservados" style="color: var(--color-reservado);">0</span>
+            </div>
+            <div class="stat-box ingresos">
+                <span class="stat-label">Caja del Turno (Hoy)</span>
+                <span class="stat-value" id="stat-caja-turno" style="color: var(--accent);">S/. 0.00</span>
+            </div>
+        </div>
+
+        <!-- Barra de Acciones Rápidas de Caseta -->
+        <div class="quick-actions-bar">
+            <button onclick="openModalValidarQR()" class="btn-quick primary">
+                <i class="fa-solid fa-qrcode"></i> Validar Ticket / Código QR
+            </button>
+            <button onclick="openModalIngresoManual()" class="btn-quick success">
+                <i class="fa-solid fa-car-on"></i> + Ingreso Rápido (Walk-in)
+            </button>
+            <button onclick="openModalIncidencia()" class="btn-quick" style="background: rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.4); color:#fca5a5;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Reportar Incidencia
+            </button>
+        </div>
+
+        <!-- Tablero Principal: Cajones Físicos + Movimientos -->
+        <div class="dashboard-grid">
+            <!-- Grid de Cajones Físicos -->
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-table-cells"></i> Cajones en Tiempo Real</h2>
+                    <span style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-hand-pointer"></i> Haz clic en un cajón para gestionar salida o ingreso</span>
+                </div>
+                <div id="slots-grid" class="slot-grid">
+                    <p style="color: var(--text-muted); grid-column:1/-1;">Cargando espacios...</p>
+                </div>
+            </div>
+
+            <!-- Movimientos y Reservas del Día -->
+            <div class="card">
+                <h2 class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Vehículos y Reservas en Caseta</h2>
+                <div class="table-wrapper" style="max-height: 420px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Placa</th>
+                                <th>Cajón</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reservas-tbody">
+                            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de Pagos y Cobros del Turno en esta Sede -->
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <div>
+                    <h2 class="card-title" style="margin-bottom:2px;"><i class="fa-solid fa-receipt" style="color:var(--accent);"></i> Historial de Cobros de Caseta (Turno Actual)</h2>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Registro de pagos procesados en esta sede (Online y Efectivo en Caseta).</p>
+                </div>
+                <span id="badge-operador-pagos" class="status-badge libre">0 cobros</span>
+            </div>
+            <div class="table-wrapper" style="max-height: 280px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Pago</th>
+                            <th>Fecha & Hora</th>
+                            <th>Origen</th>
+                            <th>Monto Cobrado</th>
+                            <th>Método</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="operador-pagos-tbody">
+                        <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando cobros del turno...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL 1: VALIDAR TICKET / QR -->
+    <div class="modal-overlay" id="modal-qr">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-qrcode" style="color:var(--primary);"></i> Validar Ticket o Placa
+                </h3>
+                <button onclick="closeModal('modal-qr')" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            <form onsubmit="handleBuscarReserva(event)">
+                <div class="form-group">
+                    <label>Código de Reserva o Placa</label>
+                    <input type="text" id="qr-input" placeholder="Ej. #12 o ABC-123" required autofocus>
+                </div>
+                <button type="submit" class="btn-submit" style="margin-top:4px;"><i class="fa-solid fa-magnifying-glass"></i> Consultar Reserva</button>
+            </form>
+            <div id="qr-resultado" style="margin-top:16px; display:none; padding:14px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid var(--glass-border);"></div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: INGRESO RÁPIDO (WALK-IN) -->
+    <div class="modal-overlay" id="modal-ingreso">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-car-on" style="color:var(--color-libre);"></i> Ingreso Rápido (Sin Reserva)
+                </h3>
+                <button onclick="closeModal('modal-ingreso')" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            <form onsubmit="handleIngresoManual(event)">
+                <div class="form-group">
+                    <label>Tipo de Vehículo</label>
+                    <select id="ingreso-tipo-vehiculo" onchange="onIngresoTipoVehiculoChange()" required>
+                        <option value="auto">🚗 Auto / Camioneta</option>
+                        <option value="moto">🏍️ Moto Lineal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Placa del Vehículo</label>
+                    <input type="text" id="ingreso-placa" placeholder="Ej. B4Z-512" required maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label>Asignar Cajón Libre Compatible</label>
+                    <select id="ingreso-espacio" required><option value="">Cargando cajones libres...</option></select>
+                </div>
+                <!-- Banner Tarifa Dinámica en Vivo -->
+                <div id="ingreso-tarifa-banner" style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        <span id="ingreso-franja-tag" style="display:inline-block; font-weight: 700; color: #f59e0b; margin-right: 4px;">☀️ Diurno</span>
+                        <span>Tarifa / hr calculada:</span>
+                    </div>
+                    <strong id="ingreso-tarifa-monto" style="font-size: 1.15rem; color: #10b981;">S/. 6.00</strong>
+                </div>
+                <button type="submit" class="btn-submit" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); margin-top:8px;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Dar Ingreso y Abrir Barrera
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: REGISTRAR SALIDA Y COBRO -->
+    <div class="modal-overlay" id="modal-salida">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-receipt" style="color:var(--accent);"></i> Salida y Cobro en Caseta
+                </h3>
+                <button onclick="closeModal('modal-salida')" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            <input type="hidden" id="salida-espacio-id">
+            <input type="hidden" id="salida-reserva-id">
+            
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:16px; border-radius:12px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="color:var(--text-muted); font-size:0.85rem;">Cajón:</span>
+                    <strong id="salida-cajon-lbl" style="color:var(--text-main);">--</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="color:var(--text-muted); font-size:0.85rem;">Placa:</span>
+                    <strong id="salida-placa-lbl" style="color:var(--accent);">--</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="color:var(--text-muted); font-size:0.85rem;">Tarifa Base:</span>
+                    <span id="salida-tarifa-lbl">S/. 5.00 / h</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid var(--glass-border); padding-top:8px; margin-top:8px;">
+                    <span style="font-size:1rem; font-weight:700;">Monto a Cobrar:</span>
+                    <strong id="salida-monto-lbl" style="font-size:1.3rem; color:#10b981;">S/. 5.00</strong>
+                </div>
+            </div>
+
+            <form onsubmit="handleProcesarSalida(event)">
+                <div class="form-group">
+                    <label>Método de Cobro</label>
+                    <select id="salida-metodo">
+                        <option value="efectivo">Efectivo en Caja</option>
+                        <option value="yape">Yape / Plin QR</option>
+                        <option value="tarjeta">POS Tarjeta Débito/Crédito</option>
+                        <option value="app">Ya pagado por App</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit" style="background:linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); margin-top:8px;">
+                    <i class="fa-solid fa-check-circle"></i> Confirmar Cobro y Liberar Cajón
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: INCIDENCIA -->
+    <div class="modal-overlay" id="modal-incidencia">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="font-size:1.15rem; color:#f87171; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Reportar Incidencia al Dueño
+                </h3>
+                <button onclick="closeModal('modal-incidencia')" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            <form onsubmit="handleReportarIncidencia(event)">
+                <div class="form-group">
+                    <label>Detalle del problema ocurrido</label>
+                    <textarea id="incidencia-desc" rows="4" placeholder="Ej. Conductor dañó barrera, vehículo abandonado, etc." required></textarea>
+                </div>
+                <button type="submit" class="btn-submit" style="background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);">
+                    <i class="fa-solid fa-paper-plane"></i> Enviar Alerta Inmediata
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_ESTACIONAMIENTOS = '/api/estacionamientos';
+        const API_RESERVAS = '/api/reservas';
+        const API_PAGOS = '/api/pagos';
+
+        const token = localStorage.getItem('jwt_token');
+        const userInfoRaw = localStorage.getItem('user_info');
+        let sedeId = null;
+        let userId = null;
+        let sedeTarifaHora = 5.0;
+        let slotsCache = [];
+        let reservasCache = [];
+        let cajaTurnoHoy = 0;
+
+        if (!token || !userInfoRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const userInfo = JSON.parse(userInfoRaw);
+            sedeId = userInfo.sede_id;
+            userId = userInfo.id;
+            if (userInfo.rol !== 'operador' && userInfo.rol !== 'admin') {
+                window.location.href = 'dashboard.html';
+            }
+            if (userInfo.rol === 'admin') {
+                const ob = document.getElementById('operador-back-admin');
+                if (ob) ob.style.display = 'flex';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user_info');
+            window.location.href = 'login.html';
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-btn').innerHTML = isLight ? '<i class="fa-solid fa-moon"></i> Modo Oscuro' : '<i class="fa-solid fa-sun"></i> Modo Claro';
+        }
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            document.getElementById('theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Modo Oscuro';
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('alert-toast');
+            toast.innerText = msg;
+            toast.style.background = isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3500);
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function openModalValidarQR() {
+            document.getElementById('qr-resultado').style.display = 'none';
+            document.getElementById('qr-input').value = '';
+            openModal('modal-qr');
+        }
+
+        let currentSedeData = null;
+
+        function getTarifaActual(tipoVehiculo = 'auto') {
+            if (!currentSedeData) return 6.0;
+            const horaActual = new Date().getHours();
+            const horaDia = currentSedeData.hora_inicio_dia !== undefined ? currentSedeData.hora_inicio_dia : 8;
+            const horaNoche = currentSedeData.hora_inicio_noche !== undefined ? currentSedeData.hora_inicio_noche : 20;
+            const esDiurno = horaActual >= horaDia && horaActual < horaNoche;
+
+            if (tipoVehiculo.toLowerCase() === 'moto') {
+                return esDiurno 
+                    ? (currentSedeData.tarifa_moto_dia !== undefined ? currentSedeData.tarifa_moto_dia : 3.0)
+                    : (currentSedeData.tarifa_moto_noche !== undefined ? currentSedeData.tarifa_moto_noche : 2.0);
+            } else {
+                return esDiurno 
+                    ? (currentSedeData.tarifa_auto_dia !== undefined ? currentSedeData.tarifa_auto_dia : (currentSedeData.tarifa_hora || 6.0))
+                    : (currentSedeData.tarifa_auto_noche !== undefined ? currentSedeData.tarifa_auto_noche : 4.0);
+            }
+        }
+
+        function esHorarioDiurno() {
+            if (!currentSedeData) return true;
+            const horaActual = new Date().getHours();
+            const horaDia = currentSedeData.hora_inicio_dia !== undefined ? currentSedeData.hora_inicio_dia : 8;
+            const horaNoche = currentSedeData.hora_inicio_noche !== undefined ? currentSedeData.hora_inicio_noche : 20;
+            return horaActual >= horaDia && horaActual < horaNoche;
+        }
+
+        function onIngresoTipoVehiculoChange() {
+            const tipo = document.getElementById('ingreso-tipo-vehiculo').value;
+            const select = document.getElementById('ingreso-espacio');
+            select.innerHTML = '';
+            
+            const libres = slotsCache.filter(s => s.estado === 'libre' && (s.tipo_vehiculo || 'auto').toLowerCase() === tipo.toLowerCase());
+            if (libres.length === 0) {
+                select.innerHTML = `<option value="">No hay cajones libres para ${tipo === 'moto' ? 'Moto' : 'Auto'}</option>`;
+            } else {
+                libres.forEach(s => select.appendChild(new Option(`Cajón ${s.numero} (${s.tipo_vehiculo ? s.tipo_vehiculo.toUpperCase() : 'AUTO'})`, s.id)));
+            }
+
+            const tarifa = getTarifaActual(tipo);
+            const esDia = esHorarioDiurno();
+            document.getElementById('ingreso-franja-tag').innerText = esDia ? '☀️ Turno Diurno' : '🌙 Turno Nocturno';
+            document.getElementById('ingreso-tarifa-monto').innerText = `S/. ${tarifa.toFixed(2)}`;
+        }
+
+        function openModalIngresoManual() {
+            document.getElementById('ingreso-placa').value = '';
+            onIngresoTipoVehiculoChange();
+            openModal('modal-ingreso');
+        }
+
+        function openModalIncidencia() {
+            document.getElementById('incidencia-desc').value = '';
+            openModal('modal-incidencia');
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (sedeId) {
+                await refreshAll();
+            } else {
+                document.getElementById('sede-nombre').innerText = "Sin sucursal asignada";
+                document.getElementById('sede-direccion').innerText = "Comuníquese con su propietario para que le asigne una sede.";
+                document.getElementById('slots-grid').innerHTML = '<p style="color: var(--text-muted); grid-column:1/-1;">No hay cajones disponibles.</p>';
+            }
+        });
+
+        async function refreshAll() {
+            await fetchSedeInfo();
+            await fetchSlots();
+            await fetchReservas();
+            await fetchCajaTurno();
+        }
+
+        async function fetchSedeInfo() {
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/sedes/${sedeId}`);
+                if (!response.ok) throw new Error();
+                currentSedeData = await response.json();
+                sedeTarifaHora = currentSedeData.tarifa_hora || 5.0;
+                
+                const autoDia = currentSedeData.tarifa_auto_dia !== undefined ? currentSedeData.tarifa_auto_dia : 6.0;
+                const autoNoche = currentSedeData.tarifa_auto_noche !== undefined ? currentSedeData.tarifa_auto_noche : 4.0;
+                const motoDia = currentSedeData.tarifa_moto_dia !== undefined ? currentSedeData.tarifa_moto_dia : 3.0;
+                const motoNoche = currentSedeData.tarifa_moto_noche !== undefined ? currentSedeData.tarifa_moto_noche : 2.0;
+                const esDia = esHorarioDiurno();
+
+                document.getElementById('sede-nombre').innerText = currentSedeData.nombre;
+                document.getElementById('sede-direccion').innerHTML = `
+                    <i class="fa-solid fa-map-pin"></i> ${currentSedeData.direccion}
+                    <div style="margin-top:6px; display:flex; gap:10px; font-size:0.83rem; flex-wrap:wrap;">
+                        <span style="color:var(--accent); font-weight:700;"><i class="fa-solid fa-car"></i> Auto: ☀️ S/. ${autoDia.toFixed(2)} / 🌙 S/. ${autoNoche.toFixed(2)}</span>
+                        <span style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-motorcycle"></i> Moto: ☀️ S/. ${motoDia.toFixed(2)} / 🌙 S/. ${motoNoche.toFixed(2)}</span>
+                        <span style="background:rgba(255,255,255,0.08); padding:2px 8px; border-radius:6px; font-weight:600; color:#fff;">${esDia ? '☀️ Franja Diurna Activa' : '🌙 Franja Nocturna Activa'}</span>
+                    </div>
+                `;
+            } catch (err) {}
+        }
+
+        async function fetchSlots() {
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/espacios/sede/${sedeId}`);
+                if (!response.ok) throw new Error();
+                slotsCache = await response.json();
+                
+                let libres = 0, ocupados = 0, reservados = 0;
+                const grid = document.getElementById('slots-grid');
+                grid.innerHTML = '';
+
+                slotsCache.forEach(slot => {
+                    if (slot.estado === 'libre') libres++;
+                    else if (slot.estado === 'ocupado') ocupados++;
+                    else if (slot.estado === 'reservado') reservados++;
+
+                    const isMoto = (slot.tipo_vehiculo || 'auto').toLowerCase() === 'moto';
+                    const iconVehiculo = isMoto ? '<i class="fa-solid fa-motorcycle" style="color:#f59e0b; margin-right:4px;"></i>' : '<i class="fa-solid fa-car" style="color:var(--accent); margin-right:4px;"></i>';
+                    const tagVehiculo = isMoto ? 'MOTO' : 'AUTO';
+
+                    const div = document.createElement('div');
+                    div.className = `slot-card ${slot.estado}`;
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <div class="slot-num">${slot.numero}</div>
+                            <span style="font-size:0.7rem; font-weight:700; background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px; color:var(--text-muted);">${iconVehiculo}${tagVehiculo}</span>
+                        </div>
+                        <div class="slot-status">
+                            <i class="fa-solid ${slot.estado === 'libre' ? 'fa-check-circle' : slot.estado === 'ocupado' ? (isMoto ? 'fa-motorcycle' : 'fa-car') : 'fa-clock'}"></i> ${slot.estado}
+                        </div>
+                    `;
+                    div.addEventListener('click', () => handleSlotClick(slot));
+                    grid.appendChild(div);
+                });
+
+                document.getElementById('stat-libres').innerText = libres;
+                document.getElementById('stat-ocupados').innerText = ocupados;
+                document.getElementById('stat-reservados').innerText = reservados;
+
+                if (slotsCache.length === 0) {
+                    grid.innerHTML = '<p style="color: var(--text-muted); grid-column:1/-1; text-align:center;">No hay cajones registrados en esta sede.</p>';
+                }
+            } catch (err) {}
+        }
+
+        function handleSlotClick(slot) {
+            const isMoto = (slot.tipo_vehiculo || 'auto').toLowerCase() === 'moto';
+            const tarifa = getTarifaActual(slot.tipo_vehiculo || 'auto');
+
+            if (slot.estado === 'ocupado') {
+                // Preparar salida y cobro
+                const res = reservasCache.find(r => r.espacio_id === slot.id && r.estado !== 'finalizada' && r.estado !== 'cancelada');
+                document.getElementById('salida-espacio-id').value = slot.id;
+                document.getElementById('salida-reserva-id').value = res ? res.id : '';
+                document.getElementById('salida-cajon-lbl').innerText = `Cajón ${slot.numero} (${isMoto ? 'Moto' : 'Auto'})`;
+                document.getElementById('salida-placa-lbl').innerText = res ? (res.placa_vehiculo || 'No registrada') : 'Vehículo en Caseta';
+                document.getElementById('salida-tarifa-lbl').innerText = `S/. ${tarifa.toFixed(2)} / h`;
+                document.getElementById('salida-monto-lbl').innerText = `S/. ${tarifa.toFixed(2)}`;
+                openModal('modal-salida');
+            } else if (slot.estado === 'reservado') {
+                // Validar reserva de este cajón
+                const res = reservasCache.find(r => r.espacio_id === slot.id && (r.estado === 'confirmada' || r.estado === 'pendiente'));
+                if (res && res.estado === 'pendiente') {
+                    showToast(`Cajón ${slot.numero}: Bloqueado por cliente en proceso de pago online (Soft-lock).`, false);
+                } else if (res && res.estado === 'confirmada') {
+                    if (confirm(`¿Dar ingreso al vehículo con placa ${res.placa_vehiculo || 'reservado'}?`)) {
+                        darIngresoReserva(res.id, slot.id);
+                    }
+                } else {
+                    updateSlotState(slot.id, 'ocupado');
+                }
+            } else {
+                // Libre: dar opción de ingreso rápido
+                document.getElementById('ingreso-placa').value = '';
+                document.getElementById('ingreso-tipo-vehiculo').value = isMoto ? 'moto' : 'auto';
+                const select = document.getElementById('ingreso-espacio');
+                select.innerHTML = `<option value="${slot.id}">Cajón ${slot.numero} (${isMoto ? 'MOTO' : 'AUTO'} - Seleccionado)</option>`;
+                const esDia = esHorarioDiurno();
+                document.getElementById('ingreso-franja-tag').innerText = esDia ? '☀️ Turno Diurno' : '🌙 Turno Nocturno';
+                document.getElementById('ingreso-tarifa-monto').innerText = `S/. ${tarifa.toFixed(2)}`;
+                openModal('modal-ingreso');
+            }
+        }
+
+        async function fetchReservas() {
+            try {
+                const response = await fetch(`${API_RESERVAS}/reservas/`, { headers: { 'Authorization': `Bearer ${token}` }});
+                if (!response.ok) throw new Error();
+                const allReservas = await response.json();
+                const slotsIds = slotsCache.map(s => s.id);
+                const slotsMap = {}; 
+                slotsCache.forEach(s => { slotsMap[s.id] = s.numero; });
+
+                reservasCache = allReservas.filter(r => slotsIds.includes(r.espacio_id));
+
+                const tbody = document.getElementById('reservas-tbody');
+                tbody.innerHTML = '';
+                let hasItems = false;
+
+                reservasCache.slice(0, 15).forEach(r => {
+                    hasItems = true;
+                    const tr = document.createElement('tr');
+                    let badgeClass = 'libre';
+                    let labelText = r.estado ? r.estado.toUpperCase() : 'ACTIVA';
+                    if (r.estado === 'confirmada') badgeClass = 'reservado';
+                    if (r.estado === 'pendiente') {
+                        badgeClass = 'reservado';
+                        labelText = 'EN PAGO (10m)';
+                    }
+                    if (r.estado === 'cancelada') badgeClass = 'ocupado';
+
+                    tr.innerHTML = `
+                        <td><strong style="color:var(--accent);"><i class="fa-solid fa-car-side"></i> ${r.placa_vehiculo || 'N/A'}</strong></td>
+                        <td><strong>${slotsMap[r.espacio_id] || `#${r.espacio_id}`}</strong></td>
+                        <td><span class="status-badge ${badgeClass}">${labelText}</span></td>
+                        <td>
+                            ${r.estado === 'confirmada' ? `
+                                <button onclick="darIngresoReserva(${r.id}, ${r.espacio_id})" class="btn-action" style="color:#10b981;">
+                                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingreso
+                                </button>
+                            ` : r.estado === 'pendiente' ? `
+                                <span style="color:#f59e0b; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-lock"></i> Retenido</span>
+                            ` : (r.estado !== 'finalizada' && r.estado !== 'cancelada') ? `
+                                <button onclick="prepararSalidaDirecta(${r.id}, ${r.espacio_id}, '${r.placa_vehiculo}')" class="btn-action" style="color:#06b6d4;">
+                                    <i class="fa-solid fa-receipt"></i> Salida
+                                </button>
+                            ` : `<span style="color:var(--text-muted); font-size:0.8rem;">Cerrada</span>`}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                if (!hasItems) tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Sin movimientos hoy.</td></tr>';
+            } catch (err) {}
+        }
+
+        async function darIngresoReserva(reservaId, espacioId) {
+            try {
+                // Actualizar cajón a ocupado
+                await updateSlotState(espacioId, 'ocupado');
+                // Actualizar estado de reserva
+                await fetch(`${API_RESERVAS}/reservas/${reservaId}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ estado: 'confirmada' })
+                });
+                showToast("¡Ingreso autorizado! Barrera abierta.");
+                await refreshAll();
+            } catch(e) { showToast("Error al dar ingreso", true); }
+        }
+
+        function prepararSalidaDirecta(reservaId, espacioId, placa) {
+            const slot = slotsCache.find(s => s.id === espacioId);
+            document.getElementById('salida-espacio-id').value = espacioId;
+            document.getElementById('salida-reserva-id').value = reservaId;
+            document.getElementById('salida-cajon-lbl').innerText = `Cajón ${slot ? slot.numero : espacioId}`;
+            document.getElementById('salida-placa-lbl').innerText = placa || 'Vehículo';
+            document.getElementById('salida-tarifa-lbl').innerText = `S/. ${sedeTarifaHora.toFixed(2)} / h`;
+            document.getElementById('salida-monto-lbl').innerText = `S/. ${sedeTarifaHora.toFixed(2)}`;
+            openModal('modal-salida');
+        }
+
+        async function handleIngresoManual(e) {
+            e.preventDefault();
+            const placa = document.getElementById('ingreso-placa').value.toUpperCase();
+            const espacioId = parseInt(document.getElementById('ingreso-espacio').value);
+
+            if (!espacioId) return showToast("Seleccione un cajón libre", true);
+
+            const slot = slotsCache.find(s => s.id === espacioId);
+            const tipoVehiculo = document.getElementById('ingreso-tipo-vehiculo').value || (slot ? slot.tipo_vehiculo : 'auto');
+            const tarifaCalculada = getTarifaActual(tipoVehiculo);
+
+            try {
+                // 1. Crear reserva atómica directa de walk-in
+                const res = await fetch(`${API_RESERVAS}/reservas/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        usuario_id: userId,
+                        espacio_id: espacioId,
+                        fecha_inicio: new Date().toISOString(),
+                        fecha_fin: new Date(Date.now() + 3600000).toISOString(),
+                        monto_pago: tarifaCalculada,
+                        metodo_pago: "efectivo",
+                        placa_vehiculo: placa
+                    })
+                });
+
+                // 2. Marcar cajón como ocupado
+                await updateSlotState(espacioId, 'ocupado');
+
+                closeModal('modal-ingreso');
+                showToast(`Vehículo ${placa} ingresado (${tipoVehiculo.toUpperCase()} - Tarifa S/. ${tarifaCalculada.toFixed(2)}). Barrera abierta.`);
+                await refreshAll();
+            } catch(e) {
+                showToast("Error al registrar ingreso", true);
+            }
+        }
+
+        async function handleProcesarSalida(e) {
+            e.preventDefault();
+            const espacioId = parseInt(document.getElementById('salida-espacio-id').value);
+            const reservaId = document.getElementById('salida-reserva-id').value;
+            const metodo = document.getElementById('salida-metodo').value;
+
+            const slot = slotsCache.find(s => s.id === espacioId);
+            const tipo = slot ? (slot.tipo_vehiculo || 'auto') : 'auto';
+            const montoCobrado = getTarifaActual(tipo);
+
+            try {
+                // 1. Liberar cajón
+                await updateSlotState(espacioId, 'libre');
+
+                // 2. Si tenía reserva, marcar como finalizada
+                if (reservaId) {
+                    await fetch(`${API_RESERVAS}/reservas/${reservaId}/estado`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ estado: 'finalizada' })
+                    });
+                }
+
+                // 3. Registrar transacción de cobro
+                await fetch(`${API_PAGOS}/pagos/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        reserva_id: reservaId ? parseInt(reservaId) : 1,
+                        monto: montoCobrado,
+                        metodo_pago: metodo,
+                        estado: "pagado"
+                    })
+                });
+
+                closeModal('modal-salida');
+                showToast(`Salida procesada. Cobro S/. ${sedeTarifaHora.toFixed(2)} registrado en caja.`);
+                await refreshAll();
+            } catch(e) {
+                showToast("Error al procesar salida", true);
+            }
+        }
+
+        async function handleBuscarReserva(e) {
+            e.preventDefault();
+            const query = document.getElementById('qr-input').value.trim().toUpperCase();
+            const resDiv = document.getElementById('qr-resultado');
+            resDiv.style.display = 'block';
+
+            const found = reservasCache.find(r => 
+                (r.placa_vehiculo && r.placa_vehiculo.toUpperCase().includes(query)) ||
+                (`#${r.id}` === query) ||
+                (String(r.id) === query)
+            );
+
+            if (!found) {
+                resDiv.innerHTML = `<span style="color:#ef4444;"><i class="fa-solid fa-xmark"></i> No se encontró reserva activa con "${query}".</span>`;
+            } else {
+                const slot = slotsCache.find(s => s.id === found.espacio_id);
+                resDiv.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong style="color:#10b981; font-size:1.05rem;"><i class="fa-solid fa-circle-check"></i> Ticket Válido</strong>
+                        <span class="status-badge libre">${found.estado.toUpperCase()}</span>
+                    </div>
+                    <p style="font-size:0.85rem; margin-bottom:4px;"><strong>Placa:</strong> ${found.placa_vehiculo || 'N/A'}</p>
+                    <p style="font-size:0.85rem; margin-bottom:8px;"><strong>Cajón Asignado:</strong> ${slot ? slot.numero : found.espacio_id}</p>
+                    <button onclick="darIngresoReserva(${found.id}, ${found.espacio_id}); closeModal('modal-qr');" class="btn-submit" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); padding:8px;">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Autorizar Ingreso Ahora
+                    </button>
+                `;
+            }
+        }
+
+        async function updateSlotState(id, state) {
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/espacios/${id}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ estado: state })
+                });
+                if (!response.ok) throw new Error();
+            } catch (err) {}
+        }
+
+        async function fetchCajaTurno() {
+            try {
+                const res = await fetch(`${API_PAGOS}/pagos/`);
+                if (res.ok) {
+                    const pagosAll = await res.json();
+                    
+                    // Filtrar los pagos que correspondan a los espacios/reservas de esta sede
+                    const slotsIds = slotsCache.map(s => s.id);
+                    const reservasSedeIds = reservasCache.map(r => r.id);
+
+                    const pagosSede = pagosAll.filter(p => 
+                        p.tipo === 'reserva' && (
+                            p.sede_id === sedeId || 
+                            (p.reserva_id && reservasSedeIds.includes(p.reserva_id))
+                        )
+                    );
+
+                    let total = 0;
+                    pagosSede.forEach(p => {
+                        const st = (p.estado || '').toLowerCase();
+                        if (st === 'pagado' || st === 'completado' || st === 'aprobado') {
+                            total += (p.monto || 0);
+                        }
+                    });
+                    document.getElementById('stat-caja-turno').innerText = `S/. ${total.toFixed(2)}`;
+
+                    // Renderizar tabla de cobros de caseta
+                    const tbody = document.getElementById('operador-pagos-tbody');
+                    const badge = document.getElementById('badge-operador-pagos');
+                    if (badge) badge.innerText = `${pagosSede.length} cobros`;
+
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        if (pagosSede.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin cobros registrados en esta sede durante el turno.</td></tr>';
+                        } else {
+                            pagosSede.slice(0, 20).forEach(p => {
+                                const st = (p.estado || '').toLowerCase();
+                                const badgeClass = (st === 'pagado' || st === 'completado') ? 'libre' : (st === 'pendiente' ? 'reservado' : 'ocupado');
+                                const fecha = p.fecha_pago ? new Date(p.fecha_pago).toLocaleTimeString('es-PE', { hour:'2-digit', minute:'2-digit' }) : 'Hoy';
+                                const metodoIcon = p.metodo_pago === 'efectivo' ? '<i class="fa-solid fa-money-bill-wave" style="color:#10b981;"></i> Efectivo' : '<i class="fa-solid fa-credit-card" style="color:var(--accent);"></i> Online';
+
+                                tbody.innerHTML += `
+                                    <tr>
+                                        <td style="font-weight:700; color:var(--primary);">#${p.id}</td>
+                                        <td style="color:var(--text-muted); font-size:0.85rem;">${fecha}</td>
+                                        <td>Reserva #${p.reserva_id || 'Walk-in'}</td>
+                                        <td style="font-weight:800; color:#10b981; font-size:0.95rem;">S/. ${Number(p.monto).toFixed(2)}</td>
+                                        <td>${metodoIcon}</td>
+                                        <td><span class="status-badge ${badgeClass}" style="text-transform:capitalize;">${st}</span></td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function handleReportarIncidencia(e) {
+            e.preventDefault();
+            const desc = document.getElementById('incidencia-desc').value;
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/incidencias/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ sede_id: sedeId, operador_id: userId, descripcion: desc })
+                });
+                if (!response.ok) throw new Error();
+                closeModal('modal-incidencia');
+                showToast('¡Alerta enviada al propietario!');
+            } catch (err) { showToast('Error al reportar.', true); }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Conductor | SmartPark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        :root {
+            --bg-color: #0b0f19;
+            --sidebar-bg: rgba(15, 23, 42, 0.85);
+            --glass-bg: rgba(30, 41, 59, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --color-libre: #10b981;
+            --color-ocupado: #ef4444;
+            --color-reservado: #f59e0b;
+        }
+
+        body.light-mode {
+            --bg-color: #f8fafc; 
+            --sidebar-bg: #ffffff; 
+            --glass-bg: #ffffff;
+            --glass-border: #e2e8f0; 
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #0284c7;
+            --text-main: #0f172a; 
+            --text-muted: #64748b;
+        }
+        body.light-mode .leaflet-layer,
+        body.light-mode .leaflet-control-zoom-in,
+        body.light-mode .leaflet-control-zoom-out,
+        body.light-mode .leaflet-control-attribution {
+            filter: none;
+        }
+        body.light-mode .sidebar {
+            background: #ffffff;
+            border-right: 1px solid #e2e8f0;
+        }
+        body.light-mode .nav-item { color: #64748b; }
+        body.light-mode .nav-item:hover { background: #f1f5f9; color: #0f172a; }
+        body.light-mode .nav-item.active { background: #eff6ff; color: #0284c7; border-left: 3px solid #0284c7; }
+        body.light-mode .card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+        }
+        body.light-mode .card-title, body.light-mode td { color: #0f172a; }
+        body.light-mode th { background: #f8fafc; color: #64748b; border-bottom-color: #e2e8f0; }
+        body.light-mode td { border-bottom-color: #f1f5f9; }
+        body.light-mode .sede-card { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        body.light-mode .sede-card:hover { border-color: #0284c7; background: #f8fafc; }
+        body.light-mode .sede-name { color: #0f172a; }
+        body.light-mode #search-sedes-input {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        body.light-mode .modal-card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+        }
+        body.light-mode .modal-card h3, body.light-mode .modal-card h4, body.light-mode #ticket-placa {
+            color: #0f172a !important;
+        }
+        body.light-mode .route-info-banner {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #0284c7;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        body.light-mode .route-info-title {
+            color: #0f172a;
+        }
+        body.light-mode .route-metric-pill {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        body.light-mode .btn-action {
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+            color: #0f172a;
+        }
+        body.light-mode .btn-action:hover {
+            background: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 18px;
+            z-index: 100;
+        }
+
+        .logo-area {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+        }
+        .logo-area i { color: #0284c7; -webkit-text-fill-color: initial; }
+
+        .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .nav-item {
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-main); }
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(2,132,199,0.18) 0%, rgba(2,132,199,0.03) 100%);
+            color: var(--primary);
+            border-left: 3px solid var(--primary);
+            font-weight: 600;
+        }
+        .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; }
+
+        .nav-divider {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 14px 12px 4px 12px;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .logout-btn { margin-top: auto; color: #ef4444 !important; }
+        .logout-btn:hover { background: rgba(239,68,68,0.1) !important; }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+        }
+
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .greeting h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .greeting p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Vistas de Sección */
+        .section-view { display: none; flex-direction: column; gap: 20px; flex: 1; height: 100%; }
+        .section-view.active-section { display: flex; }
+
+        /* Contenedor del Mapa y Sedes */
+        .map-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 480px;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sede-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            max-height: calc(100vh - 280px);
+            padding-right: 6px;
+        }
+
+        .sede-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+        .sede-card:hover {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-2px);
+        }
+        .sede-name { font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+        .sede-address { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .sede-badges { display: flex; justify-content: space-between; align-items: center; }
+        
+        .distancia-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .tarifa-badge {
+            color: #10b981;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 480px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            z-index: 1;
+        }
+
+        /* Barra de Navegación y Ruta Activa */
+        .route-info-banner {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(2, 132, 199, 0.4);
+            border-radius: 16px;
+            padding: 14px 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+            animation: fadeInDown 0.3s ease;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .route-info-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .route-metrics {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .route-metric-pill {
+            background: rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .btn-ruta {
+            background: rgba(2, 132, 199, 0.15);
+            border: 1px solid rgba(2, 132, 199, 0.4);
+            color: var(--primary);
+            padding: 5px 9px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-ruta:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+
+        .btn-action {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-action:hover { background: rgba(255,255,255,0.12); }
+
+        .btn-reserve-quick {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Tabla Reservas */
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 12px 14px; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 12px 14px; font-size: 0.9rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); color: #e2e8f0; vertical-align: middle; }
+
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+        .status-badge.libre { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-badge.reservado { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .status-badge.ocupado { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        .alert-toast {
+            position: fixed; top: 20px; right: 20px; z-index: 3000;
+            background: rgba(16, 185, 129, 0.95); color: #fff;
+            padding: 14px 22px; border-radius: 12px; display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4); font-weight: 500;
+        }
+
+        /* Modal Ticket QR */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-card {
+            background: var(--bg-color); border: 1px solid var(--glass-border);
+            border-radius: 18px; width: 420px; max-width: 90%; padding: 24px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5); text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .map-layout { grid-template-columns: 1fr; }
+            #map { min-height: 320px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navegación Conductor -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo-area"><i class="fa-solid fa-square-parking"></i> SmartPark</div>
+        <ul class="nav-menu">
+            <a href="admin.html" id="driver-back-admin" class="nav-item" style="display:none; background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(3, 105, 161, 0.2) 100%); color: var(--accent); border: 1px solid rgba(2, 132, 199, 0.4);"><i class="fa-solid fa-arrow-left"></i> Volver a Admin</a>
+            
+            <div class="nav-divider">Servicios al Conductor</div>
+            <a href="#" class="nav-item active" onclick="switchSection('sec-mapa', this)"><i class="fa-solid fa-map-location-dot"></i> Sedes en Mapa</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-mis-reservas', this)"><i class="fa-solid fa-ticket-simple"></i> Mis Reservas & QR</a>
+            <a href="vehiculos.html" class="nav-item"><i class="fa-solid fa-car"></i> Mis Vehículos</a>
+
+            <a href="#" class="nav-item logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div id="alert-toast" class="alert-toast">Acción completada con éxito.</div>
+
+        <div class="top-header">
+            <div class="greeting">
+                <h1 id="page-title">Sedes & Disponibilidad</h1>
+                <p id="page-subtitle">Calculando distancias en tiempo real desde tu ubicación.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="refreshAll()" class="btn-action" title="Actualizar ubicación y sedes">
+                    <i class="fa-solid fa-location-crosshairs"></i> Recalcular GPS
+                </button>
+                <button onclick="toggleTheme()" id="theme-btn" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 8px 14px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem;">
+                    <i class="fa-solid fa-sun"></i> Modo Claro
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= SECCIÓN 1: SEDES Y MAPA CON CÁLCULO DE DISTANCIA ================= -->
+        <section id="sec-mapa" class="section-view active-section">
+            <div class="map-layout">
+                <!-- Lista de Sedes con Distancia Exacta -->
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span style="font-weight:700; font-size:1.05rem;"><i class="fa-solid fa-compass" style="color:var(--accent);"></i> Sedes Cercanas</span>
+                        <span id="badge-sedes-count" class="distancia-badge">Cargando...</span>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <input type="text" id="search-sedes-input" oninput="filterSedesList()" placeholder="Buscar sede o dirección..." style="width:100%; background:rgba(15,23,42,0.6); border:1px solid var(--glass-border); padding:8px 12px; border-radius:10px; color:var(--text-main); font-size:0.85rem; outline:none;">
+                    </div>
+                    <div id="sede-list-container" class="sede-list">
+                        <p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">Buscando sedes con cálculo de distancia...</p>
+                    </div>
+                </div>
+
+                <!-- Mapa Leaflet Interactivo -->
+                <div class="card" style="padding:10px; position:relative;">
+                    <div id="route-banner" class="route-info-banner">
+                        <div class="route-info-title">
+                            <span id="route-dest-name"><i class="fa-solid fa-diamond-turn-right" style="color:var(--accent);"></i> Ruta en Curso</span>
+                            <button onclick="limpiarRuta()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem;">&times;</button>
+                        </div>
+                        <div class="route-metrics">
+                            <div class="route-metric-pill">
+                                <i class="fa-solid fa-clock" style="color:#f59e0b;"></i>
+                                <span id="route-time-text">-- min</span>
+                            </div>
+                            <div class="route-metric-pill">
+                                <i class="fa-solid fa-route" style="color:var(--accent);"></i>
+                                <span id="route-dist-text">-- km</span>
+                            </div>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                            <span>Cálculo vial en tiempo real</span>
+                            <a id="route-gmaps-link" href="#" target="_blank" style="color:var(--primary); text-decoration:none; font-weight:600;">
+                                Abrir en Google Maps <i class="fa-solid fa-external-link"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div id="map"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 2: MIS RESERVAS & TICKETS QR ================= -->
+        <section id="sec-mis-reservas" class="section-view">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div>
+                        <h2 style="font-size:1.15rem; font-weight:700;"><i class="fa-solid fa-ticket-simple" style="color:var(--primary);"></i> Mis Reservas Activas e Historial</h2>
+                        <p style="font-size:0.85rem; color:var(--text-muted);">Muestra tu ticket QR en la caseta para que el operador te dé ingreso inmediato.</p>
+                    </div>
+                    <button onclick="fetchMisReservas()" class="btn-action"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Reserva</th>
+                                <th>Placa</th>
+                                <th>Fecha Inicio</th>
+                                <th>Estado</th>
+                                <th>Ticket / Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mis-reservas-tbody">
+                            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Cargando tus reservas...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Ver Ticket QR -->
+    <div class="modal-overlay" id="modal-ticket-qr">
+        <div class="modal-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--glass-border); padding-bottom:10px;">
+                <h3 style="font-size:1.15rem; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-qrcode" style="color:var(--accent);"></i> Pase de Ingreso Digital
+                </h3>
+                <button onclick="closeModal('modal-ticket-qr')" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            <div style="background:#fff; padding:16px; border-radius:14px; display:inline-block; margin-bottom:14px;">
+                <img id="qr-img" src="" alt="Ticket QR" style="width:180px; height:180px; display:block;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <h4 id="ticket-reserva-id" style="font-size:1.2rem; color:var(--primary); font-weight:800;">RESERVA #--</h4>
+                <p id="ticket-placa" style="font-size:1rem; font-weight:700; color:var(--text-main);">PLACA: --</p>
+                <p id="ticket-instruccion" style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Muestra este código al llegar a la caseta del operador.</p>
+            </div>
+            <button onclick="closeModal('modal-ticket-qr')" class="btn-action" style="width:100%; justify-content:center;">Entendido</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_ESTACIONAMIENTOS = '/api/estacionamientos';
+        const API_RESERVAS = '/api/reservas';
+        const API_USUARIOS = '/api/usuarios';
+        
+        let map;
+        let markersLayer;
+        let sedesCache = [];
+        let userLocation = { lat: -12.046374, lon: -77.042793 }; // Lima por defecto
+        let userId = null;
+
+        const token = localStorage.getItem('jwt_token');
+        const userInfoRaw = localStorage.getItem('user_info');
+
+        if (!token || !userInfoRaw) {
+            window.location.href = 'login.html';
+        } else {
+            const userInfo = JSON.parse(userInfoRaw);
+            userId = userInfo.id;
+            if (userInfo.rol === 'admin') {
+                const b = document.getElementById('driver-back-admin');
+                if (b) b.style.display = 'flex';
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-btn').innerHTML = isLight ? '<i class="fa-solid fa-moon"></i> Modo Oscuro' : '<i class="fa-solid fa-sun"></i> Modo Claro';
+        }
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            document.getElementById('theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Modo Oscuro';
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('alert-toast');
+            toast.innerText = msg;
+            toast.style.background = isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3500);
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // Navegación por Secciones
+        function switchSection(secId, el) {
+            document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active-section'));
+            const target = document.getElementById(secId);
+            if (target) target.classList.add('active-section');
+
+            document.querySelectorAll('.nav-menu .nav-item').forEach(i => i.classList.remove('active'));
+            if (el) el.classList.add('active');
+
+            if (secId === 'sec-mapa') {
+                document.getElementById('page-title').innerText = "Sedes & Disponibilidad";
+                document.getElementById('page-subtitle').innerText = "Calculando distancias en tiempo real desde tu ubicación.";
+                if (map) setTimeout(() => map.invalidateSize(), 150);
+            } else {
+                document.getElementById('page-title').innerText = "Mis Reservas & Pases Digitales";
+                document.getElementById('page-subtitle').innerText = "Consulta tus tickets QR para ingresar a la caseta.";
+                fetchMisReservas();
+            }
+        }
+
+        // Haversine exacto en el frontend por si falla el GPS o se usan puntos manuales
+        function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+            const R = 6371.0;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return (R * c).toFixed(2);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeMap();
+            obtenerUbicacionYRecalcular();
+        });
+
+        async function refreshAll() {
+            obtenerUbicacionYRecalcular();
+        }
+
+        function obtenerUbicacionYRecalcular() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        userLocation.lat = pos.coords.latitude;
+                        userLocation.lon = pos.coords.longitude;
+                        actualizarPosicionUsuario();
+                        fetchSedesCercanas();
+                    },
+                    (err) => {
+                        console.warn("GPS no disponible, usando coordenadas por defecto.");
+                        actualizarPosicionUsuario();
+                        fetchSedesCercanas();
+                    },
+                    { timeout: 7000 }
+                );
+            } else {
+                actualizarPosicionUsuario();
+                fetchSedesCercanas();
+            }
+        }
+
+        let userMarker;
+        function initializeMap() {
+            map = L.map('map').setView([userLocation.lat, userLocation.lon], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+
+            markersLayer = L.layerGroup().addTo(map);
+        }
+
+        function actualizarPosicionUsuario() {
+            if (!map) return;
+            if (userMarker) map.removeLayer(userMarker);
+
+            const userIcon = L.divIcon({
+                html: `<div style="background-color: #06b6d4; width: 14px; height: 14px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 12px #06b6d4;"></div>`,
+                className: 'user-marker',
+                iconSize: [20, 20]
+            });
+            userMarker = L.marker([userLocation.lat, userLocation.lon], { icon: userIcon }).addTo(map)
+                .bindPopup('<b style="color:#06b6d4;"><i class="fa-solid fa-street-view"></i> Tu Ubicación Actual</b>');
+        }
+
+        async function fetchSedesCercanas() {
+            try {
+                const res = await fetch(`${API_ESTACIONAMIENTOS}/sedes/cercanas?lat=${userLocation.lat}&lon=${userLocation.lon}`);
+                if (!res.ok) throw new Error();
+                sedesCache = await res.json();
+                
+                // Asegurarse de que cada sede tenga la distancia calculada
+                sedesCache.forEach(s => {
+                    if (s.distancia_km === undefined || s.distancia_km === null) {
+                        s.distancia_km = parseFloat(calcularDistanciaKm(userLocation.lat, userLocation.lon, s.latitud, s.longitud));
+                    }
+                });
+                
+                // Ordenar por cercanía
+                sedesCache.sort((a, b) => a.distancia_km - b.distancia_km);
+
+                document.getElementById('badge-sedes-count').innerText = `${sedesCache.length} disponibles`;
+                renderSedesList(sedesCache);
+                renderSedesEnMapa(sedesCache);
+            } catch(e) {
+                document.getElementById('sede-list-container').innerHTML = '<p style="color:#ef4444; font-size:0.85rem; text-align:center;">Error al consultar sedes.</p>';
+            }
+        }
+
+        let activeRouteLayer = null;
+
+        function renderSedesList(sedes) {
+            const container = document.getElementById('sede-list-container');
+            container.innerHTML = '';
+
+            if (sedes.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">No hay sedes registradas.</p>';
+                return;
+            }
+
+            sedes.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'sede-card';
+                // Estimado inicial en coche (~30km/h velocidad ciudad con tráfico)
+                const tiempoAproxMin = Math.max(2, Math.round(s.distancia_km * 2.8));
+
+                card.innerHTML = `
+                    <div class="sede-name">${s.nombre}</div>
+                    <div class="sede-address"><i class="fa-solid fa-map-pin"></i> ${s.direccion}</div>
+                    <div class="sede-badges">
+                        <span class="distancia-badge"><i class="fa-solid fa-route"></i> ${s.distancia_km} km</span>
+                        <span style="font-size:0.75rem; color:#f59e0b; font-weight:700;"><i class="fa-solid fa-clock"></i> ~${tiempoAproxMin} min</span>
+                        <span class="tarifa-badge">S/. ${(s.tarifa_hora || 5.0).toFixed(2)} / h</span>
+                    </div>
+                    <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+                        <button class="btn-ruta" onclick="event.stopPropagation(); trazarRuta(${s.latitud}, ${s.longitud}, '${s.nombre.replace(/'/g, "\\'")}')">
+                            <i class="fa-solid fa-diamond-turn-right"></i> ¿Cómo llegar?
+                        </button>
+                        <a href="reserva.html?sede_id=${s.id}" class="btn-reserve-quick" onclick="event.stopPropagation();">
+                            <i class="fa-solid fa-calendar-check"></i> Reservar
+                        </a>
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    trazarRuta(s.latitud, s.longitud, s.nombre);
+                });
+                container.appendChild(card);
+            });
+        }
+
+        function renderSedesEnMapa(sedes) {
+            if (!markersLayer) return;
+            markersLayer.clearLayers();
+
+            const coords = [[userLocation.lat, userLocation.lon]];
+
+            sedes.forEach(s => {
+                if (s.latitud && s.longitud) {
+                    const tiempoAproxMin = Math.max(2, Math.round(s.distancia_km * 2.8));
+                    const marker = L.marker([s.latitud, s.longitud]);
+                    marker.bindPopup(`
+                        <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:200px;">
+                            <b style="font-size:1rem; color:var(--primary);"><i class="fa-solid fa-square-parking"></i> ${s.nombre}</b>
+                            <p style="font-size:0.8rem; color:#64748b; margin:4px 0;">${s.direccion}</p>
+                            <div style="display:flex; justify-content:space-between; margin: 6px 0; font-size:0.8rem; font-weight:700;">
+                                <span style="color:var(--primary);"><i class="fa-solid fa-route"></i> ${s.distancia_km} km</span>
+                                <span style="color:#f59e0b;"><i class="fa-solid fa-clock"></i> ~${tiempoAproxMin} min</span>
+                            </div>
+                            <div style="display:flex; gap:6px; margin-top:8px;">
+                                <button onclick="trazarRuta(${s.latitud}, ${s.longitud}, '${s.nombre.replace(/'/g, "\\'")}')" style="flex:1; background:var(--primary); color:#fff; border:none; padding:7px 8px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+                                    <i class="fa-solid fa-diamond-turn-right"></i> Trazar Ruta
+                                </button>
+                                <a href="reserva.html?sede_id=${s.id}" style="flex:1; text-align:center; background:#0284c7; color:#fff; text-decoration:none; padding:7px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
+                                    Reservar
+                                </a>
+                            </div>
+                        </div>
+                    `);
+                    markersLayer.addLayer(marker);
+                    coords.push([s.latitud, s.longitud]);
+                }
+            });
+
+            if (coords.length > 1) {
+                const bounds = L.latLngBounds(coords);
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+            }
+        }
+
+        // Trazar Ruta en el Mapa y calcular tiempo estimado exacto
+        async function trazarRuta(destLat, destLon, destNombre) {
+            if (!map) return;
+            showToast(`Calculando mejor ruta hacia ${destNombre}...`);
+
+            const banner = document.getElementById('route-banner');
+            const destNameEl = document.getElementById('route-dest-name');
+            const timeEl = document.getElementById('route-time-text');
+            const distEl = document.getElementById('route-dist-text');
+            const gmapsLink = document.getElementById('route-gmaps-link');
+
+            destNameEl.innerHTML = `<i class="fa-solid fa-diamond-turn-right" style="color:var(--accent);"></i> Hacia: ${destNombre}`;
+            timeEl.innerText = "Calculando...";
+            distEl.innerText = "Calculando...";
+            banner.style.display = 'flex';
+
+            // Google Maps enlace de navegación directa
+            gmapsLink.href = `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lon}&destination=${destLat},${destLon}&travelmode=driving`;
+
+            try {
+                // Consultar OSRM API pública para ruta de conducción automotriz
+                const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lon},${userLocation.lat};${destLon},${destLat}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const distKm = (route.distance / 1000).toFixed(1);
+                    const durationMin = Math.round(route.duration / 60);
+
+                    distEl.innerText = `${distKm} km`;
+                    timeEl.innerText = `${durationMin} min aprox.`;
+
+                    // Limpiar capa anterior si existe
+                    if (activeRouteLayer) map.removeLayer(activeRouteLayer);
+
+                    // Dibujar Polyline luminosa en el mapa
+                    activeRouteLayer = L.geoJSON(route.geometry, {
+                        style: {
+                            color: '#06b6d4',
+                            weight: 6,
+                            opacity: 0.85,
+                            lineCap: 'round',
+                            dashArray: null
+                        }
+                    }).addTo(map);
+
+                    // Ajustar mapa a la ruta
+                    map.fitBounds(activeRouteLayer.getBounds(), { padding: [50, 50] });
+                    showToast(`Ruta lista: ${distKm} km (~${durationMin} min en auto)`);
+                } else {
+                    throw new Error("No se pudo obtener ruta detallada");
+                }
+            } catch(e) {
+                // Fallback con línea recta y estimación
+                console.warn("Fallo OSRM, usando línea directa con estimación:", e);
+                const dKm = calcularDistanciaKm(userLocation.lat, userLocation.lon, destLat, destLon);
+                const durMin = Math.max(3, Math.round(dKm * 2.8));
+
+                distEl.innerText = `${dKm} km`;
+                timeEl.innerText = `${durMin} min aprox.`;
+
+                if (activeRouteLayer) map.removeLayer(activeRouteLayer);
+                activeRouteLayer = L.polyline([
+                    [userLocation.lat, userLocation.lon],
+                    [destLat, destLon]
+                ], { color: '#0284c7', weight: 4, dashArray: '8, 8' }).addTo(map);
+
+                map.fitBounds(activeRouteLayer.getBounds(), { padding: [50, 50] });
+                showToast(`Ruta aproximada trazada: ~${durMin} min`);
+            }
+        }
+
+        function limpiarRuta() {
+            if (activeRouteLayer && map) {
+                map.removeLayer(activeRouteLayer);
+                activeRouteLayer = null;
+            }
+            const banner = document.getElementById('route-banner');
+            if (banner) banner.style.display = 'none';
+        }
+
+
+        function filterSedesList() {
+            const query = (document.getElementById('search-sedes-input').value || '').toLowerCase();
+            const filtered = sedesCache.filter(s => 
+                (s.nombre && s.nombre.toLowerCase().includes(query)) ||
+                (s.direccion && s.direccion.toLowerCase().includes(query))
+            );
+            renderSedesList(filtered);
+        }
+
+        // ================= GESTIÓN DE MIS RESERVAS & TICKETS QR =================
+        async function fetchMisReservas() {
+            try {
+                const res = await fetch(`${API_RESERVAS}/reservas/usuario/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const tbody = document.getElementById('mis-reservas-tbody');
+                tbody.innerHTML = '';
+
+                if (!res.ok) throw new Error();
+                const reservas = await res.json();
+
+                if (reservas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No tienes reservas registradas. ¡Reserva tu primer espacio en el mapa!</td></tr>';
+                    return;
+                }
+
+                reservas.forEach(r => {
+                    const tr = document.createElement('tr');
+                    let badgeClass = 'libre';
+                    if (r.estado === 'confirmada') badgeClass = 'reservado';
+                    if (r.estado === 'cancelada') badgeClass = 'ocupado';
+
+                    const fecha = new Date(r.fecha_inicio).toLocaleString('es-PE', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+
+                    tr.innerHTML = `
+                        <td><strong>#R-${r.id}</strong></td>
+                        <td><strong style="color:var(--accent);"><i class="fa-solid fa-car"></i> ${r.placa_vehiculo || 'N/A'}</strong></td>
+                        <td style="font-size:0.85rem; color:var(--text-muted);">${fecha}</td>
+                        <td><span class="status-badge ${badgeClass}">${r.estado ? r.estado.toUpperCase() : 'ACTIVA'}</span></td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="mostrarTicketQR(${r.id}, '${r.placa_vehiculo}')" class="btn-action" style="color:var(--accent);" title="Ver Ticket QR">
+                                    <i class="fa-solid fa-qrcode"></i> Ver QR
+                                </button>
+                                ${r.estado === 'confirmada' ? `
+                                    <button onclick="cancelarReservaCliente(${r.id})" class="btn-action" style="color:#ef4444;" title="Cancelar Reserva">
+                                        <i class="fa-solid fa-ban"></i> Cancelar
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) {
+                document.getElementById('mis-reservas-tbody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444;">Error al cargar tus reservas.</td></tr>';
+            }
+        }
+
+        function mostrarTicketQR(reservaId, placa) {
+            document.getElementById('ticket-reserva-id').innerText = `RESERVA #R-${reservaId}`;
+            document.getElementById('ticket-placa').innerText = `PLACA: ${placa || 'N/A'}`;
+            const qrPayload = JSON.stringify({ reserva_id: reservaId, placa: placa });
+            document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrPayload)}`;
+            openModal('modal-ticket-qr');
+        }
+
+        async function cancelarReservaCliente(reservaId) {
+            if (!confirm("¿Seguro que deseas cancelar esta reserva? Tu espacio será liberado.")) return;
+            try {
+                const res = await fetch(`${API_RESERVAS}/reservas/${reservaId}/cancelar`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast("Reserva cancelada con éxito");
+                    await fetchMisReservas();
+                    await fetchSedesCercanas();
+                } else {
+                    showToast("No se pudo cancelar la reserva", true);
+                }
+            } catch(e) {
+                showToast("Error de conexión", true);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Propietario | SmartPark Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Pasarela de Pagos Culqi Checkout JS 2.0 / v4 -->
+    <script src="https://checkout.culqi.com/js/v4"></script>
+
+    <style>
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        :root {
+            --bg-color: #0b0f19;
+            --sidebar-bg: rgba(15, 23, 42, 0.85);
+            --glass-bg: rgba(30, 41, 59, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            --color-libre: #10b981;
+            --color-ocupado: #ef4444;
+            --color-reservado: #f59e0b;
+        }
+
+        body.light-mode {
+            --bg-color: #f8fafc; 
+            --sidebar-bg: rgba(255, 255, 255, 0.95); 
+            --glass-bg: #ffffff;
+            --glass-border: #e2e8f0; 
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --accent: #0284c7;
+            --text-main: #0f172a; 
+            --text-muted: #64748b;
+        }
+        body.light-mode .leaflet-layer, 
+        body.light-mode .leaflet-control-zoom-in, 
+        body.light-mode .leaflet-control-zoom-out, 
+        body.light-mode .leaflet-control-attribution { 
+            filter: none; 
+        }
+        body.light-mode .nav-item { color: #64748b; }
+        body.light-mode .nav-item:hover { background: #f1f5f9; color: #0f172a; }
+        body.light-mode .card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+        }
+        body.light-mode .card-title, body.light-mode td { color: #0f172a; }
+        body.light-mode th { 
+            background: #f8fafc; 
+            color: #64748b; 
+            border-bottom-color: #e2e8f0; 
+        }
+        body.light-mode td { border-bottom-color: #f1f5f9; }
+        body.light-mode .form-group input, body.light-mode .form-group select { background: #fff; color: #0f172a; border-color: #cbd5e1; }
+        body.light-mode .stat-box { background: #ffffff; border: 1px solid #e2e8f0; }
+        body.light-mode .btn-action {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        body.light-mode .btn-action:hover { background: #e2e8f0; }
+        body.light-mode .btn-secondary {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        body.light-mode .btn-secondary:hover { background: #e2e8f0; }
+        body.light-mode .payment-modal {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+        }
+        body.light-mode .payment-header h3 { color: #0f172a; }
+        body.light-mode input[type="text"],
+        body.light-mode input[type="email"],
+        body.light-mode input[type="password"],
+        body.light-mode input[type="number"],
+        body.light-mode select {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        body.light-mode input::placeholder {
+            color: #94a3b8 !important;
+        }
+        body.light-mode #search-slots-input,
+        body.light-mode #search-personal-input,
+        body.light-mode #search-finanzas-input,
+        body.light-mode #filter-slot-sede {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.08) 0px, transparent 50%);
+            color: var(--text-main); display: flex; height: 100vh; overflow: hidden;
+        }
+
+        .sidebar { 
+            width: 280px; 
+            background: var(--sidebar-bg); 
+            backdrop-filter: blur(20px); 
+            border-right: 1px solid var(--glass-border); 
+            display: flex; 
+            flex-direction: column; 
+            padding: 24px 18px; 
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        .logo-area { 
+            font-size: 1.5rem; 
+            font-weight: 800; 
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-bottom: 24px; 
+            padding-left: 8px; 
+        }
+        .logo-area i { color: #0284c7; -webkit-text-fill-color: initial; }
+        .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .nav-item { 
+            padding: 12px 14px; 
+            border-radius: 12px; 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            font-weight: 500; 
+            font-size: 0.95rem;
+            transition: all 0.25s ease; 
+            cursor: pointer; 
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-main); }
+        .nav-item.active { 
+            background: linear-gradient(90deg, rgba(2,132,199,0.18) 0%, rgba(2,132,199,0.03) 100%); 
+            color: var(--primary); 
+            border-left: 3px solid var(--primary); 
+            font-weight: 600; 
+        }
+        .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; }
+        .nav-divider { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            padding: 14px 12px 4px 12px; 
+            letter-spacing: 1px; 
+            font-weight: 700; 
+        }
+        .logout-btn { margin-top: auto; color: #ef4444 !important; }
+        .logout-btn:hover { background: rgba(239,68,68,0.1) !important; }
+
+        .main-content { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 30px 40px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 22px; 
+        }
+        .top-header { display: flex; justify-content: space-between; align-items: center; }
+        .greeting h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .greeting p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Sections Control */
+        .section-view { display: none; flex-direction: column; gap: 22px; animation: fadeIn 0.3s ease-in-out; }
+        .section-view.active-section { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 20px; 
+            padding: 24px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+        }
+        .card-title { 
+            font-size: 1.15rem; 
+            font-weight: 600; 
+            margin-bottom: 18px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            color: #e2e8f0; 
+        }
+
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .stat-box { 
+            background: rgba(15, 23, 42, 0.4); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 16px; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+        }
+        .stat-box.libre { border-bottom: 3px solid var(--color-libre); }
+        .stat-box.reservado { border-bottom: 3px solid var(--color-reservado); }
+        .stat-box.ocupado { border-bottom: 3px solid var(--color-ocupado); }
+        .stat-box.ingresos { border-bottom: 3px solid var(--accent); }
+        .stat-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; }
+
+        .two-cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .form-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .form-group input, .form-group select { 
+            background: rgba(15, 23, 42, 0.5); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 10px; 
+            padding: 12px 14px; 
+            color: var(--text-main); 
+            font-size: 0.95rem; 
+            outline: none; 
+            transition: all 0.3s ease; 
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+
+        .btn-submit { 
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); 
+            color: #fff; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 12px 18px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-action { 
+            background: rgba(255,255,255,0.06); 
+            border: 1px solid var(--glass-border); 
+            color: var(--text-main); 
+            padding: 6px 12px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+            font-weight: 500; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 6px; 
+            transition: all 0.2s; 
+        }
+        .btn-action:hover { background: rgba(255,255,255,0.12); }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #owner-map { width: 100%; height: 320px; border-radius: 14px; border: 1px solid var(--glass-border); }
+        #map-picker { width: 100%; height: 160px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 6px; }
+
+        .table-wrapper { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 12px 16px; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 12px 16px; font-size: 0.95rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); color: #e2e8f0; vertical-align: middle; }
+        
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+        .status-badge.libre { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-badge.ocupado { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .status-badge.reservado { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .status-badge.activo { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-badge.bloqueado { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        .incidencia-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; border-radius: 8px; margin-bottom: 8px; }
+        
+        .alert-toast { position: fixed; top: 20px; right: 20px; z-index: 3000; background: rgba(16, 185, 129, 0.95); color: #fff; padding: 14px 22px; border-radius: 12px; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.4); font-weight: 500; }
+
+        /* Payment Modal */
+        .payment-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .payment-modal { background: var(--bg-color); border: 1px solid var(--glass-border); border-radius: 16px; width: 420px; max-width: 90%; padding: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); position: relative; }
+        .payment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
+        .card-preview { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .pay-amount { font-size: 1.8rem; font-weight: 800; color: #fff; }
+        .pay-plan-name { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .pay-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-pay-now { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); width: 100%; padding: 14px; border: none; border-radius: 10px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .two-cols { grid-template-columns: 1fr; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Propietario -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo-area"><i class="fa-solid fa-parking"></i> SmartPark Dueño</div>
+        <ul class="nav-menu">
+            <a href="admin.html" class="nav-item" id="owner-back-admin" style="display:none; background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(3, 105, 161, 0.2) 100%); color: var(--accent); border: 1px solid rgba(2, 132, 199, 0.4);"><i class="fa-solid fa-arrow-left"></i> Volver a Admin</a>
+            
+            <div class="nav-divider">Centro de Negocio</div>
+            <a href="#" class="nav-item active" onclick="switchSection('sec-resumen', this)"><i class="fa-solid fa-chart-pie"></i> Resumen Operativo</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-finanzas', this)"><i class="fa-solid fa-wallet"></i> Finanzas & Cobros</a>
+            <a href="#" class="nav-item" id="nav-tab-cobros" onclick="switchSection('sec-cobros', this)"><i class="fa-solid fa-credit-card"></i> Configurar Cobros</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-sedes', this)"><i class="fa-solid fa-warehouse"></i> Mis Sedes</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-slots', this)"><i class="fa-solid fa-square-parking"></i> Espacios (Slots)</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-personal', this)"><i class="fa-solid fa-users-gear"></i> Mi Personal</a>
+            <a href="#" class="nav-item" onclick="switchSection('sec-suscripcion', this)"><i class="fa-solid fa-gem"></i> Mi Suscripción</a>
+            
+            <a href="#" class="nav-item logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</a>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div id="alert-toast" class="alert-toast"></div>
+
+        <div class="top-header">
+            <div class="greeting">
+                <h1 id="page-title">Resumen Operativo</h1>
+                <p id="page-subtitle">Métricas en tiempo real, mapa de sedes y monitoreo de incidencias.</p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <!-- Widget Reloj Digital y Fecha en Vivo -->
+                <div id="live-clock-widget" style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 14px; display: flex; align-items: center; gap: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981; animation: pulse 2s infinite;"></span>
+                        <div style="text-align: right;">
+                            <div id="clock-time" style="font-size: 1.15rem; font-weight: 800; letter-spacing: 1px; color: var(--text-main); font-variant-numeric: tabular-nums;">00:00:00</div>
+                            <div id="clock-date" style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="refreshAll()" class="btn-action" title="Recargar datos"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+                <button onclick="toggleTheme()" id="theme-btn" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); padding: 10px 16px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem;">
+                    <i class="fa-solid fa-sun"></i> Modo Claro
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= SECCIÓN 1: RESUMEN OPERATIVO (ESTADÍSTICAS) ================= -->
+        <section id="sec-resumen" class="section-view active-section">
+            <!-- Barra de Ocupación Global de Sedes -->
+            <div class="card" style="margin-bottom: 20px; padding: 18px 22px; background: linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(56, 189, 248, 0.04) 100%); border: 1px solid rgba(2, 132, 199, 0.25);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fa-solid fa-gauge-high" style="color:var(--accent); font-size:1.2rem;"></i>
+                        <div>
+                            <strong style="font-size:0.95rem;">Nivel de Ocupación General (Todas las Sedes)</strong>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">Capacidad física utilizada en tiempo real</div>
+                        </div>
+                    </div>
+                    <span id="txt-ocupacion-pct" style="font-size:1.3rem; font-weight:800; color:var(--text-main);">0%</span>
+                </div>
+                <div style="background:rgba(255,255,255,0.06); border-radius:12px; height:12px; overflow:hidden;">
+                    <div id="bar-ocupacion-global" style="background: linear-gradient(90deg, #10b981 0%, #f59e0b 60%, #ef4444 100%); width:0%; height:100%; transition: width 0.8s ease;"></div>
+                </div>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-box libre">
+                    <span class="stat-label">Espacios Libres</span>
+                    <span class="stat-value" id="stat-libres" style="color: var(--color-libre);">0</span>
+                </div>
+                <div class="stat-box reservado">
+                    <span class="stat-label">Reservados</span>
+                    <span class="stat-value" id="stat-reservados" style="color: var(--color-reservado);">0</span>
+                </div>
+                <div class="stat-box ocupado">
+                    <span class="stat-label">Ocupados</span>
+                    <span class="stat-value" id="stat-ocupados" style="color: var(--color-ocupado);">0</span>
+                </div>
+                <div class="stat-box ingresos">
+                    <span class="stat-label">Total Espacios (Capacidad)</span>
+                    <span class="stat-value" id="stat-total-espacios" style="color: var(--primary);">0</span>
+                </div>
+            </div>
+
+            <!-- Fila 1: Cobertura en Mapa y Buzón de Incidencias -->
+            <div class="two-cols" style="margin-bottom: 24px;">
+                <!-- Cobertura en Mapa -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-earth-americas"></i> Cobertura de tus Sucursales</h2>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span id="badge-map-sedes" class="status-badge libre">0 sedes</span>
+                            <button onclick="recenterOwnerMap()" class="btn-action" title="Centrar en todas mis sedes">
+                                <i class="fa-solid fa-crosshairs"></i> Centrar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="owner-map"></div>
+                </div>
+
+                <!-- Incidencias Reportadas -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <div>
+                            <h2 class="card-title" style="margin-bottom:2px; color: #f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Buzón de Incidencias</h2>
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Alertas operativas reportadas por tus operadores.</p>
+                        </div>
+                        <span id="badge-incidencias-count" class="status-badge ocupado">0 incidencias</span>
+                    </div>
+                    <div id="incidencias-list" style="max-height: 280px; overflow-y: auto;">
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">Sin incidencias recientes.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN: CONFIGURAR COBROS (CREDENCIALES CULQI) ================= -->
+        <section id="sec-cobros" class="section-view">
+            <div class="card" style="max-width: 720px; border: 1px solid rgba(14, 165, 233, 0.35); background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(2, 132, 199, 0.02) 100%);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 class="card-title" style="margin-bottom: 0; color: var(--accent); font-size: 1.25rem;">
+                                <i class="fa-solid fa-key"></i> Mis Credenciales Culqi
+                            </h2>
+                            <span id="badge-cobros-estado" class="status-badge ocupado" style="font-size: 0.8rem; padding: 5px 12px;">
+                                ❌ No configurada
+                            </span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: var(--text-muted); margin: 6px 0 0 0;">
+                            Configura tus credenciales para recibir pagos directos de conductores por cada reserva.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-key" style="color: var(--accent);"></i> Public Key:
+                        </label>
+                        <input type="text" id="cobros-public-key" placeholder="pk_test_xxxxxxxxxxxxxxxx" style="padding: 12px 14px; font-size: 0.9rem; font-family: 'Consolas', 'Courier New', monospace; border-radius: 10px;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-lock" style="color: var(--accent);"></i> Secret Key:
+                        </label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="cobros-secret-key" placeholder="••••••••" style="padding: 12px 45px 12px 14px; font-size: 0.9rem; font-family: 'Consolas', 'Courier New', monospace; width: 100%; border-radius: 10px;">
+                            <button type="button" onclick="toggleSecretKeyVisibility()" style="position: absolute; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.15rem; padding: 4px; display: flex; align-items: center; justify-content: center;" title="Mostrar u Ocultar">
+                                <span id="toggle-eye-icon">👁️</span>
+                            </button>
+                        </div>
+                        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--accent);"></i> La secret_key se cifra con Fernet antes de guardarse y nunca viaja de vuelta al navegador.
+                        </small>
+                    </div>
+
+                    <div id="cobros-alert-box" style="display: none; padding: 12px 16px; border-radius: 12px; font-size: 0.88rem; align-items: center; gap: 10px; margin-top: 4px;"></div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap;">
+                        <button onclick="guardarCredencialesCobros()" id="btn-cobros-guardar" class="btn-action" style="background: var(--primary); color: #fff; font-weight: 700; padding: 10px 22px; border-radius: 10px; border: none; font-size: 0.9rem;">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Credenciales
+                        </button>
+                        <button onclick="probarConexionCobros()" id="btn-cobros-probar" class="btn-action" style="padding: 10px 20px; font-weight: 700; border-radius: 10px; font-size: 0.9rem;">
+                            <span id="spinner-probar" class="spinner" style="display: none; width: 16px; height: 16px; border-width: 2px;"></span>
+                            <span id="txt-btn-probar"><i class="fa-solid fa-bolt"></i> Probar Conexión</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN NUEVA: FINANZAS & COBROS ================= -->
+        <section id="sec-finanzas" class="section-view">
+
+            <!-- Fila 1: Cuenta Bancaria Única y Gráfico de Ingresos -->
+            <div class="two-cols" style="margin-bottom: 24px;">
+                <!-- Datos Bancarios Únicos del Propietario -->
+                <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.35); background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 182, 212, 0.03) 100%);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div>
+                            <h2 class="card-title" style="margin-bottom:2px; color: #10b981;"><i class="fa-solid fa-building-columns"></i> Mi Cuenta de Cobro (100% Directo)</h2>
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Los conductores pagan tus reservas directamente a esta cuenta única registrada a tu nombre (sin comisiones intermedias).</p>
+                        </div>
+                        <button onclick="guardarCuentaBancaria()" class="btn-action" style="background: #10b981; color: #000; font-weight:700; padding:8px 16px;"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Banco</label>
+                            <input type="text" id="bank-nombre" placeholder="Ej: BCP, BBVA, Interbank" style="padding:10px 12px; font-size:0.85rem;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">N° de Cuenta</label>
+                            <input type="text" id="bank-cuenta" placeholder="Ej: 193-45678912-0-01" style="padding:10px 12px; font-size:0.85rem;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">CCI / Yape / Plin</label>
+                            <input type="text" id="bank-cci" placeholder="Ej: 002-193-004567891201-14" style="padding:10px 12px; font-size:0.85rem;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Titular / DNI / RUC</label>
+                            <input type="text" id="bank-titular" placeholder="Ej: Carlos Ramos (DNI 74812345)" style="padding:10px 12px; font-size:0.85rem;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Ganancias con Selector de Sede -->
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div>
+                            <h2 class="card-title" style="margin-bottom:2px;"><i class="fa-solid fa-chart-line"></i> Ingresos Recaudados</h2>
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Evolución de cobros por sede o consolidado.</p>
+                        </div>
+                        <select id="filter-finanzas-sede" onchange="loadSupervisionAndChart()" style="padding:6px 12px; border-radius:8px; background:var(--glass-bg); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.85rem; font-weight:600;">
+                            <option value="">Todas mis sedes (Consolidado)</option>
+                        </select>
+                    </div>
+                    <canvas id="revenueChart" height="140"></canvas>
+                </div>
+            </div>
+
+            <!-- Fila 2: Historial Completo de Pagos (Diferenciando Reserva Online vs Ingreso Manual en Caseta) -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <div>
+                        <h2 class="card-title" style="margin-bottom: 2px;"><i class="fa-solid fa-money-bill-transfer" style="color: var(--accent);"></i> Historial de Cobros Recibidos</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">Supervisa los pagos de reservas online y los cobros manuales (Walk-in) realizados en caseta física.</p>
+                    </div>
+                    <span id="badge-pagos-count" class="status-badge libre">0 transacciones</span>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Pago</th>
+                                <th>Fecha & Hora</th>
+                                <th>Sede</th>
+                                <th>Tipo de Operación</th>
+                                <th>Monto Recibido</th>
+                                <th>Canal / Cuenta Destino</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pagos-recibidos-tbody">
+                            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando historial de pagos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 2: MIS SEDES ================= -->
+        <section id="sec-sedes" class="section-view">
+            <div class="two-cols">
+                <!-- Lista de Sedes -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-warehouse"></i> Mis Sedes Activas</h2>
+                        <span id="badge-sedes-count" class="status-badge libre">0 sedes</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sede & Dirección</th>
+                                    <th>Tarifa</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sedes-tbody">
+                                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Cargando sedes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Formulario Registrar / Editar Sede -->
+                <div class="card">
+                    <h2 id="sede-form-title" class="card-title"><i class="fa-solid fa-hotel"></i> Registrar Nueva Sede</h2>
+                    <form id="form-sede" onsubmit="handleSaveSede(event)">
+                        <input type="hidden" id="sede-edit-id">
+                        <div class="form-group">
+                            <label>Nombre de la Sede</label>
+                            <input type="text" id="sede-nombre" required placeholder="Ej. SmartPark Los Olivos">
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="sede-direccion" required placeholder="Av. Antúnez de Mayolo 1420">
+                        </div>
+                        <!-- Matriz de Tarifas por Vehículo y Horario (Día vs Noche) -->
+                        <div style="background: rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:14px; border-radius:12px; margin-bottom:14px;">
+                            <label style="font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:8px; display:block;">
+                                <i class="fa-solid fa-clock"></i> Matriz de Tarifas por Horario y Vehículo
+                            </label>
+                            
+                            <!-- Franja Horaria Configurable -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:0.72rem;">☀️ Inicio Diurno (Hora 0-23)</label>
+                                    <input type="number" id="sede-hora-dia" min="0" max="23" value="8" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:0.72rem;">🌙 Inicio Nocturno (Hora 0-23)</label>
+                                    <input type="number" id="sede-hora-noche" min="0" max="23" value="20" required>
+                                </div>
+                            </div>
+
+                            <!-- Tarifas Autos -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:0.72rem; color:#60a5fa;"><i class="fa-solid fa-car"></i> Auto - Diurno (S/./h)</label>
+                                    <input type="number" id="sede-auto-dia" step="0.5" value="6.0" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:0.72rem; color:#818cf8;"><i class="fa-solid fa-car"></i> Auto - Nocturno (S/./h)</label>
+                                    <input type="number" id="sede-auto-noche" step="0.5" value="4.0" required>
+                                </div>
+                            </div>
+
+                            <!-- Tarifas Motos -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:0.72rem; color:#34d399;"><i class="fa-solid fa-motorcycle"></i> Moto - Diurno (S/./h)</label>
+                                    <input type="number" id="sede-moto-dia" step="0.5" value="3.0" required>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:0.72rem; color:#a7f3d0;"><i class="fa-solid fa-motorcycle"></i> Moto - Nocturno (S/./h)</label>
+                                    <input type="number" id="sede-moto-noche" step="0.5" value="2.0" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Ubicación (Haz clic en el mapa para fijar coordenadas)</label>
+                            <div id="map-picker"></div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div class="form-group"><label>Latitud</label><input type="number" id="sede-lat" step="0.000001" required value="-12.046"></div>
+                            <div class="form-group"><label>Longitud</label><input type="number" id="sede-lon" step="0.000001" required value="-77.042"></div>
+                        </div>
+                        <button type="submit" id="btn-sede-submit" class="btn-submit" style="width: 100%; margin-top: 8px;">Guardar Sede con Tarifas</button>
+                        <button type="button" id="btn-sede-cancel" class="btn-secondary" style="display:none; width: 100%; margin-top: 8px;" onclick="cancelSedeEdit()">Cancelar Edición</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 3: ESPACIOS (SLOTS) ================= -->
+        <section id="sec-slots" class="section-view">
+            <div class="two-cols">
+                <!-- Tabla Supervisión de Slots en Vivo -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                        <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-square-parking"></i> Slots en Vivo</h2>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="filter-slot-sede" onchange="filterSlotsBySede(this.value)" style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none;">
+                                <option value="">Todas las sedes</option>
+                            </select>
+                            <button onclick="exportSlotsExcel()" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                            <button onclick="exportSlotsCSV()" class="btn-action" title="Exportar a CSV"><i class="fa-solid fa-file-csv"></i> CSV</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" style="max-height: 450px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sede</th>
+                                    <th>Tipo Vehículo</th>
+                                    <th>Número / Código</th>
+                                    <th>Estado Actual</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supervision-tbody">
+                                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Cargando espacios...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Formulario Crear Espacios Individual o Lote -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fa-solid fa-plus-circle"></i> Agregar Nuevos Cajones</h2>
+                    <form id="form-espacio" onsubmit="handleCreateEspacio(event)">
+                        <div class="form-group">
+                            <label>Sede Destino</label>
+                            <select id="espacio-sede" required><option value="">Cargando sedes...</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Vehículo Permitido</label>
+                            <select id="espacio-tipo-vehiculo" required>
+                                <option value="auto">🚗 Auto / Camioneta</option>
+                                <option value="moto">🏍️ Moto Lineal</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Modo de Creación</label>
+                            <select id="espacio-modo" onchange="toggleEspacioModo(this.value)">
+                                <option value="individual">Individual (1 solo cajón)</option>
+                                <option value="lote">En Lote (Varios correlativos)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="grp-individual">
+                            <label>Número / Código del Espacio</label>
+                            <input type="text" id="espacio-numero" placeholder="Ej. A-01">
+                        </div>
+                        <div id="grp-lote" style="display:none; flex-direction:column;">
+                            <div class="form-group">
+                                <label>Prefijo</label>
+                                <input type="text" id="espacio-prefijo" value="Slot">
+                            </div>
+                            <div class="form-group">
+                                <label>Cantidad a Generar</label>
+                                <input type="number" id="espacio-cantidad" value="5" min="1" max="50">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-submit" style="width: 100%; margin-top: 10px;">Crear Cajones</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 4: MI PERSONAL (OPERADORES) ================= -->
+        <section id="sec-personal" class="section-view">
+            <div class="two-cols">
+                <!-- Directorio de Operadores -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div>
+                            <h2 class="card-title" style="margin-bottom:2px;"><i class="fa-solid fa-users-gear"></i> Directorio de Operadores</h2>
+                            <p style="font-size:0.8rem; color:var(--text-muted);">Personal autorizado para operar las casetas y escanear QR.</p>
+                        </div>
+                        <span id="badge-op-count" class="status-badge libre">0 operadores</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Operador</th>
+                                    <th>Email</th>
+                                    <th>Sede Asignada</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="operadores-tbody">
+                                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Cargando operadores...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Formulario Registrar Operador -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fa-solid fa-user-plus"></i> Contratar / Asignar Operador</h2>
+                    <form id="form-operador" onsubmit="handleCreateOperador(event)">
+                        <div class="form-group">
+                            <label>Nombre Completo</label>
+                            <input type="text" id="operador-nombre" required placeholder="Ej. Mario Casas">
+                        </div>
+                        <div class="form-group">
+                            <label>Correo Electrónico (Login)</label>
+                            <input type="email" id="operador-email" required placeholder="mario@smartpark.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña Temporal</label>
+                            <input type="password" id="operador-pass" required placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <div class="form-group">
+                            <label>Sede Asignada</label>
+                            <select id="operador-sede" required><option value="">Cargando sedes...</option></select>
+                        </div>
+                        <button type="submit" class="btn-submit" style="width: 100%; margin-top: 10px;">Registrar Operador</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECCIÓN 5: MI SUSCRIPCIÓN SAAS ================= -->
+        <section id="sec-suscripcion" class="section-view">
+            <div class="two-cols">
+                <!-- Estado Actual y Límites -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fa-solid fa-id-card"></i> Estado de tu Membresía</h2>
+                    <div id="estado-suscripcion" style="margin-bottom: 20px; padding: 20px; border-radius: 14px; background: rgba(2, 132, 199, 0.08); border: 1px solid var(--primary);">
+                        <h3 style="margin-bottom: 8px; color: var(--text-main);">Cargando estado...</h3>
+                    </div>
+                    
+                    <div id="limites-suscripcion" style="display: none;">
+                        <h3 style="font-size: 1rem; margin-bottom:15px;"><i class="fa-solid fa-chart-simple"></i> Uso de tu Plan Actual</h3>
+                        
+                        <div style="margin-bottom: 18px;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:6px;">
+                                <span>Sedes Registradas</span>
+                                <span id="txt-limite-sedes" style="font-weight: 700;">0 / 0</span>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.06); border-radius:10px; height:10px; overflow:hidden;">
+                                <div id="bar-sedes" style="background:var(--primary); width:0%; height:100%; transition:width 0.5s;"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:6px;">
+                                <span>Operadores Contratados</span>
+                                <span id="txt-limite-op" style="font-weight: 700;">0 / 0</span>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.06); border-radius:10px; height:10px; overflow:hidden;">
+                                <div id="bar-op" style="background:var(--accent); width:0%; height:100%; transition:width 0.5s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Planes Disponibles para Mejorar o Renovar -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fa-solid fa-boxes-stacked"></i> Planes Disponibles</h2>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom: 14px;">Elige el plan que mejor se adapte al crecimiento de tus estacionamientos.</p>
+                    <div id="planes-list" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Planes renderizados dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Pago Culqi Suscripción (Admin / Plataforma) -->
+    <div class="payment-modal-overlay" id="payment-modal">
+        <div class="payment-modal">
+            <div class="payment-header">
+                <h3 style="font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-credit-card" style="color: #0284c7;"></i> Suscripción SmartPark
+                </h3>
+                <button onclick="closePaymentModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <div class="card-preview">
+                <div class="pay-amount" id="pay-amount-display">S/. 0.00</div>
+                <div class="pay-plan-name" id="pay-plan-display">PLAN</div>
+            </div>
+
+            <div style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 18px; font-size: 0.85rem; line-height: 1.5;">
+                <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-building-columns"></i> Pago Directo a la Administración
+                </div>
+                El cobro de tu membresía SaaS se procesa mediante la pasarela segura **Culqi 2.0** a nombre de **SmartPark Enterprise**. Acepta Tarjeta (Crédito/Débito) y Yape.
+            </div>
+
+            <button class="btn-pay-now" id="btn-process-pay" onclick="iniciarCheckoutCulqiSuscripcion()">
+                <span id="pay-btn-text"><i class="fa-solid fa-lock"></i> Pagar con Culqi Checkout</span>
+                <div class="spinner" id="pay-spinner"></div>
+            </button>
+            <div style="text-align: center; margin-top: 14px; font-size: 0.75rem; color: var(--text-muted);">
+                <i class="fa-solid fa-shield-check"></i> Transacción 100% Cifrada con Culqi API 2.0
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_ESTACIONAMIENTOS = '/api/estacionamientos';
+        const API_PAGOS = '/api/pagos';
+        const API_USUARIOS = '/api/usuarios';
+        const API_RESERVAS = '/api/reservas';
+        
+        let ownerMap, pickerMap, pickerMarker, ownerMarkersLayer;
+        let propietarioId = null;
+        let ownerSedesCache = [];
+        let allSpacesCache = [];
+        let operadoresCache = [];
+        let chartInstance = null;
+        let sedesIds = [];
+        let hasActiveSubscription = false;
+
+        const token = localStorage.getItem('jwt_token');
+        const userInfoRaw = localStorage.getItem('user_info');
+        if (!token || !userInfoRaw) { 
+            window.location.href = 'login.html'; 
+        } else {
+            const userInfo = JSON.parse(userInfoRaw);
+            propietarioId = userInfo.id;
+            if (userInfo.rol !== 'propietario' && userInfo.rol !== 'admin') window.location.href = 'dashboard.html';
+            if (userInfo.rol === 'admin') {
+                const b = document.getElementById('owner-back-admin');
+                if (b) b.style.display = 'flex';
+            }
+        }
+
+        function logout() { 
+            localStorage.removeItem('jwt_token'); 
+            localStorage.removeItem('user_info'); 
+            window.location.href = 'login.html'; 
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            document.getElementById('theme-btn').innerHTML = isLight ? '<i class="fa-solid fa-moon"></i> Modo Oscuro' : '<i class="fa-solid fa-sun"></i> Modo Claro';
+        }
+        if (localStorage.getItem('theme') === 'light') { 
+            document.body.classList.add('light-mode'); 
+            document.getElementById('theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Modo Oscuro'; 
+        }
+
+        // Secciones de Navegación
+        const sectionTitles = {
+            'sec-resumen': { title: 'Resumen Operativo', sub: 'Métricas en tiempo real, mapa de sedes y monitoreo de incidencias.' },
+            'sec-finanzas': { title: 'Finanzas & Cobros', sub: 'Cuenta bancaria de cobro directo, conciliación de ingresos y transacciones.' },
+            'sec-cobros': { title: 'Configurar Cobros', sub: 'Administra y verifica tus credenciales de Culqi para cobros de reservas.' },
+            'sec-sedes': { title: 'Gestión de Sedes', sub: 'Administra tus locales, tarifas por hora y coordenadas geográficas.' },
+            'sec-slots': { title: 'Control de Espacios (Slots)', sub: 'Supervisa cajones libres, ocupados y genera nuevos en lote.' },
+            'sec-personal': { title: 'Mi Personal (Operadores)', sub: 'Asigna trabajadores a tus sedes para el control de accesos.' },
+            'sec-suscripcion': { title: 'Planes SaaS & Membresía', sub: 'Monitorea el uso de tus recursos y adquiere ampliaciones.' }
+        };
+
+        function switchSection(sectionId, el) {
+            document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active-section'));
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.add('active-section');
+
+            document.querySelectorAll('.nav-menu .nav-item').forEach(item => item.classList.remove('active'));
+            if (el) el.classList.add('active');
+
+            if (sectionTitles[sectionId]) {
+                document.getElementById('page-title').innerText = sectionTitles[sectionId].title;
+                document.getElementById('page-subtitle').innerText = sectionTitles[sectionId].sub;
+            }
+
+            if (sectionId === 'sec-cobros') {
+                cargarEstadoCredencialesCobros();
+            }
+
+            if (sectionId === 'sec-resumen' && ownerMap) {
+                setTimeout(() => ownerMap.invalidateSize(), 150);
+            }
+            if (sectionId === 'sec-sedes' && pickerMap) {
+                setTimeout(() => pickerMap.invalidateSize(), 150);
+            }
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('alert-toast');
+            toast.innerText = msg;
+            toast.style.background = isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 4000);
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            startLiveClock();
+            initializeMaps();
+            await refreshAll();
+        });
+
+        // Reloj Digital en Vivo y Fecha
+        function startLiveClock() {
+            function updateTime() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('es-PE', { hour12: false });
+                const dateStr = now.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+                const timeEl = document.getElementById('clock-time');
+                const dateEl = document.getElementById('clock-date');
+                if (timeEl) timeEl.innerText = timeStr;
+                if (dateEl) dateEl.innerText = dateStr;
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        async function refreshAll() {
+            await cargarCuentaBancaria();
+            await cargarEstadoCredencialesCobros();
+            await loadSedes();
+            await loadOperadores();
+            await checkSuscripcion();
+            await loadIncidencias();
+            await loadSupervisionAndChart();
+        }
+
+        // ================= GESTIÓN CREDENCIALES CULQI (TAB CONFIGURAR COBROS) =================
+        function toggleSecretKeyVisibility() {
+            const skInput = document.getElementById('cobros-secret-key');
+            const eyeIcon = document.getElementById('toggle-eye-icon');
+            if (skInput.type === 'password') {
+                skInput.type = 'text';
+                eyeIcon.innerText = '🙈';
+            } else {
+                skInput.type = 'password';
+                eyeIcon.innerText = '👁️';
+            }
+        }
+
+        function setBadgeCobros(tipo, texto) {
+            const badge = document.getElementById('badge-cobros-estado');
+            if (!badge) return;
+            badge.className = `status-badge ${tipo}`;
+            badge.innerText = texto;
+        }
+
+        function mostrarCobrosAlert(msg, esExito) {
+            const alertBox = document.getElementById('cobros-alert-box');
+            if (!alertBox) return;
+            alertBox.style.display = 'flex';
+            if (esExito) {
+                alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                alertBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                alertBox.style.color = '#34d399';
+                alertBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>${msg}</span>`;
+            } else {
+                alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                alertBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                alertBox.style.color = '#f87171';
+                alertBox.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> <span>${msg}</span>`;
+            }
+        }
+
+        async function cargarEstadoCredencialesCobros() {
+            try {
+                const res = await fetch('/api/pagos/credenciales/estado', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const pkInput = document.getElementById('cobros-public-key');
+                    const skInput = document.getElementById('cobros-secret-key');
+                    
+                    if (data.configurada) {
+                        pkInput.value = data.public_key_mask || '';
+                        skInput.value = '';
+                        skInput.placeholder = '••••••••';
+
+                        if (data.verificada) {
+                            setBadgeCobros('libre', '✅ Verificada');
+                        } else {
+                            setBadgeCobros('reservado', '⚠️ Guardada sin verificar');
+                        }
+                    } else {
+                        pkInput.value = '';
+                        skInput.value = '';
+                        skInput.placeholder = '••••••••';
+                        setBadgeCobros('ocupado', '❌ No configurada');
+                    }
+                } else {
+                    setBadgeCobros('ocupado', '❌ No configurada');
+                }
+            } catch (err) {
+                console.error("Error al obtener estado de credenciales:", err);
+                setBadgeCobros('ocupado', '❌ No configurada');
+            }
+        }
+
+        async function guardarCredencialesCobros() {
+            const pk = document.getElementById('cobros-public-key').value.trim();
+            const sk = document.getElementById('cobros-secret-key').value.trim();
+            const alertBox = document.getElementById('cobros-alert-box');
+            if (alertBox) alertBox.style.display = 'none';
+
+            if (!pk || !sk) {
+                mostrarCobrosAlert("Por favor ingresa tanto la Public Key como la Secret Key.", false);
+                showToast("Ingresa ambas llaves Culqi", true);
+                return;
+            }
+
+            const btn = document.getElementById('btn-cobros-guardar');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando...`;
+
+            try {
+                const res = await fetch('/api/pagos/credenciales/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ public_key: pk, secret_key: sk })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    // La secret_key nunca se muestra después de guardar, solo placeholder ••••••••
+                    document.getElementById('cobros-public-key').value = data.public_key_mask || pk;
+                    const skInput = document.getElementById('cobros-secret-key');
+                    skInput.value = '';
+                    skInput.type = 'password';
+                    skInput.placeholder = '••••••••';
+                    document.getElementById('toggle-eye-icon').innerText = '👁️';
+
+                    if (data.esta_verificada) {
+                        setBadgeCobros('libre', '✅ Verificada');
+                    } else {
+                        setBadgeCobros('reservado', '⚠️ Guardada sin verificar');
+                    }
+
+                    mostrarCobrosAlert("Credenciales guardadas y cifradas con éxito. Recuerda probar la conexión para verificarlas.", true);
+                    showToast("Credenciales guardadas con éxito");
+                    await loadSedes();
+                } else {
+                    mostrarCobrosAlert(data.detail || "Error al guardar las credenciales.", false);
+                    showToast(data.detail || "Error al guardar", true);
+                }
+            } catch (err) {
+                mostrarCobrosAlert("Error de conexión con el servicio de pagos.", false);
+                showToast("Error de conexión", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function probarConexionCobros() {
+            const btn = document.getElementById('btn-cobros-probar');
+            const spinner = document.getElementById('spinner-probar');
+            const txtBtn = document.getElementById('txt-btn-probar');
+            const alertBox = document.getElementById('cobros-alert-box');
+            if (alertBox) alertBox.style.display = 'none';
+
+            btn.disabled = true;
+            spinner.style.display = 'inline-block';
+            txtBtn.innerText = ' Verificando...';
+
+            try {
+                const res = await fetch('/api/pagos/credenciales/verificar', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await res.json();
+                if (res.ok && data.estado === 'verificada') {
+                    setBadgeCobros('libre', '✅ Verificada');
+                    mostrarCobrosAlert("✅ Conexión con Culqi exitosa: Credenciales verificadas correctamente.", true);
+                    showToast("✅ Credenciales verificadas correctamente");
+                    await loadSedes();
+                } else {
+                    setBadgeCobros('reservado', '⚠️ Guardada sin verificar');
+                    const msg = data.detail || "❌ Llave inválida o rechazada por Culqi.";
+                    mostrarCobrosAlert(msg, false);
+                    showToast(msg, true);
+                }
+            } catch (err) {
+                mostrarCobrosAlert("❌ Error de comunicación al conectar con Culqi.", false);
+                showToast("Error al verificar credenciales", true);
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                txtBtn.innerText = '🔌 Probar Conexión';
+            }
+        }
+
+        // ================= GESTIÓN CUENTA BANCARIA ÚNICA =================
+        async function cargarCuentaBancaria() {
+            try {
+                const res = await fetch(`${API_USUARIOS}/perfil`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.banco) document.getElementById('bank-nombre').value = user.banco;
+                    if (user.numero_cuenta) document.getElementById('bank-cuenta').value = user.numero_cuenta;
+                    if (user.cci_alias) document.getElementById('bank-cci').value = user.cci_alias;
+                    if (user.titular_cuenta) document.getElementById('bank-titular').value = user.titular_cuenta;
+                }
+            } catch(e) {
+                console.error("Error cargando cuenta bancaria:", e);
+            }
+        }
+
+        async function guardarCuentaBancaria() {
+            const banco = document.getElementById('bank-nombre').value.trim();
+            const numero_cuenta = document.getElementById('bank-cuenta').value.trim();
+            const cci_alias = document.getElementById('bank-cci').value.trim();
+            const titular_cuenta = document.getElementById('bank-titular').value.trim();
+
+            if (!banco || !numero_cuenta || !titular_cuenta) {
+                showToast("Por favor completa Banco, N° de Cuenta y Titular", true);
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_USUARIOS}/cuenta-bancaria`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ banco, numero_cuenta, cci_alias, titular_cuenta })
+                });
+
+                if (res.ok) {
+                    showToast("¡Cuenta bancaria única actualizada exitosamente!");
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || "Error al guardar cuenta bancaria", true);
+                }
+            } catch(e) {
+                showToast("Error de conexión al guardar cuenta bancaria", true);
+            }
+        }
+
+        // ================= MAPAS (LEAFLET) =================
+        function initializeMaps() {
+            ownerMap = L.map('owner-map').setView([-12.046, -77.042], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(ownerMap);
+
+            pickerMap = L.map('map-picker').setView([-12.046, -77.042], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(pickerMap);
+            pickerMarker = L.marker([-12.046, -77.042]).addTo(pickerMap);
+
+            pickerMap.on('click', (e) => {
+                document.getElementById('sede-lat').value = e.latlng.lat.toFixed(6);
+                document.getElementById('sede-lon').value = e.latlng.lng.toFixed(6);
+                pickerMarker.setLatLng(e.latlng);
+            });
+        }
+
+        function recenterOwnerMap() {
+            if (!ownerMap || ownerSedesCache.length === 0) return;
+            const valid = ownerSedesCache.filter(s => s.latitud && s.longitud);
+            if (valid.length === 0) return;
+            const bounds = L.latLngBounds(valid.map(s => [s.latitud, s.longitud]));
+            ownerMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        }
+
+        // ================= SUSCRIPCIÓN & LÍMITES =================
+        async function checkSuscripcion() {
+            try {
+                const res = await fetch(`${API_USUARIOS}/suscripcion/actual`, { headers: { 'Authorization': `Bearer ${token}` }});
+                const estadoDiv = document.getElementById('estado-suscripcion');
+                
+                if (!res.ok) {
+                    hasActiveSubscription = false;
+                    estadoDiv.innerHTML = `<h3 style="color:#ef4444;"><i class="fa-solid fa-circle-exclamation"></i> Sin Suscripción Activa</h3>
+                    <p style="color:var(--text-muted); font-size:0.9rem; margin-top:4px;">No puedes registrar nuevas sedes ni operadores. Adquiere un plan para comenzar.</p>`;
+                    document.getElementById('limites-suscripcion').style.display = 'none';
+                } else {
+                    const sus = await res.json();
+                    hasActiveSubscription = (sus.estado === 'activa');
+                    estadoDiv.innerHTML = `<h3><i class="fa-solid fa-circle-check" style="color:var(--color-libre);"></i> Suscripción ${sus.estado.toUpperCase()}</h3>
+                    <p style="color:var(--text-muted); font-size:0.9rem; margin-top:4px;">Plan ID #${sus.plan_id} &bull; Vence el: ${new Date(sus.fecha_vencimiento).toLocaleDateString()}</p>`;
+                    
+                    if (hasActiveSubscription) {
+                        try {
+                            const resLim = await fetch(`${API_USUARIOS}/suscripcion/limites/${propietarioId}`, { headers: { 'Authorization': `Bearer ${token}` }});
+                            if (resLim.ok) {
+                                const limites = await resLim.json();
+                                const sedesCount = ownerSedesCache.length;
+                                const opCount = operadoresCache.length;
+                                
+                                document.getElementById('limites-suscripcion').style.display = 'block';
+                                
+                                document.getElementById('txt-limite-sedes').innerText = `${sedesCount} / ${limites.max_sedes}`;
+                                document.getElementById('bar-sedes').style.width = `${Math.min(100, (sedesCount/limites.max_sedes)*100)}%`;
+                                if (sedesCount >= limites.max_sedes) document.getElementById('bar-sedes').style.background = '#ef4444';
+                                
+                                document.getElementById('txt-limite-op').innerText = `${opCount} / ${limites.max_operadores}`;
+                                document.getElementById('bar-op').style.width = `${Math.min(100, (opCount/limites.max_operadores)*100)}%`;
+                                if (opCount >= limites.max_operadores) document.getElementById('bar-op').style.background = '#ef4444';
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                // Cargar Planes Disponibles
+                const planesRes = await fetch(`${API_USUARIOS}/planes`, { headers: { 'Authorization': `Bearer ${token}` }});
+                if (planesRes.ok) {
+                    const planes = await planesRes.json();
+                    const planesDiv = document.getElementById('planes-list');
+                    planesDiv.innerHTML = '';
+                    planes.forEach(p => {
+                        planesDiv.innerHTML += `
+                        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:16px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h4 style="font-size:1.05rem; margin-bottom:4px; color:var(--accent); font-weight:700;">${p.nombre}</h4>
+                                <div style="font-size:0.85rem; color:var(--text-muted);"><i class="fa-solid fa-warehouse"></i> Hasta ${p.max_sedes} Sedes &bull; <i class="fa-solid fa-users"></i> Hasta ${p.max_operadores} Operadores</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:1.2rem; font-weight:800; margin-bottom:6px; color:var(--text-main);">S/. ${p.precio.toFixed(2)}<span style="font-size:0.8rem; color:var(--text-muted); font-weight:400;">/mes</span></div>
+                                <button onclick="openPaymentModal(${p.id}, '${p.nombre}', ${p.precio})" class="btn-submit" style="padding:6px 14px; font-size:0.85rem;"><i class="fa-solid fa-credit-card"></i> Suscribirse</button>
+                            </div>
+                        </div>`;
+                    });
+                }
+            } catch(e) {}
+        }
+
+        // ================= GESTIÓN DE SEDES =================
+        async function loadSedes() {
+            try {
+                const response = await fetch(`${API_ESTACIONAMIENTOS}/sedes/propietario/${propietarioId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                ownerSedesCache = await response.json();
+                sedesIds = ownerSedesCache.map(s => s.id);
+                
+                document.getElementById('badge-sedes-count').innerText = `${ownerSedesCache.length} sedes`;
+                const badgeMap = document.getElementById('badge-map-sedes');
+                if (badgeMap) badgeMap.innerText = `${ownerSedesCache.length} sedes`;
+                
+                const selectEsp = document.getElementById('espacio-sede');
+                const selectOp = document.getElementById('operador-sede');
+                const filterSlotSede = document.getElementById('filter-slot-sede');
+                const filterFinanzasSede = document.getElementById('filter-finanzas-sede');
+                const tbody = document.getElementById('sedes-tbody');
+                
+                selectEsp.innerHTML = '<option value="">-- Selecciona una Sede --</option>'; 
+                selectOp.innerHTML = '<option value="">-- Selecciona una Sede --</option>'; 
+                filterSlotSede.innerHTML = '<option value="">Todas las sedes</option>';
+                if (filterFinanzasSede) {
+                    const prevVal = filterFinanzasSede.value;
+                    filterFinanzasSede.innerHTML = '<option value="">Todas mis sedes (Consolidado)</option>';
+                    ownerSedesCache.forEach(s => filterFinanzasSede.appendChild(new Option(s.nombre, s.id)));
+                    filterFinanzasSede.value = prevVal;
+                }
+                tbody.innerHTML = '';
+                
+                if (ownerMarkersLayer) {
+                    ownerMarkersLayer.clearLayers();
+                } else {
+                    ownerMarkersLayer = L.layerGroup().addTo(ownerMap);
+                }
+
+                if (ownerSedesCache.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Aún no has registrado ninguna sede.</td></tr>';
+                    return;
+                }
+
+                const validCoords = [];
+                ownerSedesCache.forEach(s => {
+                    selectEsp.appendChild(new Option(s.nombre, s.id));
+                    selectOp.appendChild(new Option(s.nombre, s.id));
+                    filterSlotSede.appendChild(new Option(s.nombre, s.id));
+                    
+                    if (s.latitud && s.longitud) {
+                        const marker = L.marker([s.latitud, s.longitud]);
+                        marker.bindPopup(`
+                            <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:180px;">
+                                <b style="font-size:1rem; color:var(--primary);"><i class="fa-solid fa-square-parking"></i> ${s.nombre}</b>
+                                <p style="font-size:0.8rem; color:#64748b; margin:4px 0;">${s.direccion}</p>
+                                <span style="font-size:0.8rem; font-weight:700; color:#10b981;">S/. ${(s.tarifa_hora || 5.0).toFixed(2)}/hora</span>
+                            </div>
+                        `);
+                        ownerMarkersLayer.addLayer(marker);
+                        validCoords.push([s.latitud, s.longitud]);
+                    }
+
+                    const autoDia = s.tarifa_auto_dia !== undefined ? s.tarifa_auto_dia : (s.tarifa_hora || 6.0);
+                    const autoNoche = s.tarifa_auto_noche !== undefined ? s.tarifa_auto_noche : 4.0;
+                    const motoDia = s.tarifa_moto_dia !== undefined ? s.tarifa_moto_dia : 3.0;
+                    const motoNoche = s.tarifa_moto_noche !== undefined ? s.tarifa_moto_noche : 2.0;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>
+                            <strong style="color:var(--text-main);">${s.nombre}</strong>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">${s.direccion}</div>
+                        </td>
+                        <td>
+                            <div style="font-size:0.82rem; line-height: 1.4;">
+                                <div><i class="fa-solid fa-car" style="color:var(--primary);"></i> Auto: <span style="color:#10b981; font-weight:700;">☀️ S/. ${autoDia.toFixed(2)}</span> / <span style="color:var(--accent); font-weight:700;">🌙 S/. ${autoNoche.toFixed(2)}</span></div>
+                                <div><i class="fa-solid fa-motorcycle" style="color:#f59e0b;"></i> Moto: <span style="color:#10b981; font-weight:700;">☀️ S/. ${motoDia.toFixed(2)}</span> / <span style="color:var(--accent); font-weight:700;">🌙 S/. ${motoNoche.toFixed(2)}</span></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge ${s.activa ? 'activo' : 'bloqueado'}">
+                                ${s.activa ? 'Operando' : 'Pausada'}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button onclick='editSede(${JSON.stringify(s)})' class="btn-action" title="Editar Sede"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="toggleEstadoSede(${s.id}, ${!s.activa})" class="btn-action" title="${s.activa ? 'Pausar Sede' : 'Activar Sede'}" style="color:${s.activa ? '#ef4444' : '#10b981'};">
+                                     <i class="fa-solid ${s.activa ? 'fa-pause' : 'fa-play'}"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                if (validCoords.length > 0 && ownerMap) {
+                    const bounds = L.latLngBounds(validCoords);
+                    ownerMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                    setTimeout(() => ownerMap.invalidateSize(), 200);
+                }
+            } catch (err) {}
+        }
+
+        function editSede(s) {
+            document.getElementById('sede-edit-id').value = s.id;
+            document.getElementById('sede-nombre').value = s.nombre;
+            document.getElementById('sede-direccion').value = s.direccion;
+            document.getElementById('sede-hora-dia').value = s.hora_inicio_dia !== undefined ? s.hora_inicio_dia : 8;
+            document.getElementById('sede-hora-noche').value = s.hora_inicio_noche !== undefined ? s.hora_inicio_noche : 20;
+            document.getElementById('sede-auto-dia').value = s.tarifa_auto_dia !== undefined ? s.tarifa_auto_dia : 6.0;
+            document.getElementById('sede-auto-noche').value = s.tarifa_auto_noche !== undefined ? s.tarifa_auto_noche : 4.0;
+            document.getElementById('sede-moto-dia').value = s.tarifa_moto_dia !== undefined ? s.tarifa_moto_dia : 3.0;
+            document.getElementById('sede-moto-noche').value = s.tarifa_moto_noche !== undefined ? s.tarifa_moto_noche : 2.0;
+
+            document.getElementById('sede-lat').value = s.latitud;
+            document.getElementById('sede-lon').value = s.longitud;
+            if (pickerMarker) pickerMarker.setLatLng([s.latitud, s.longitud]);
+            if (pickerMap) pickerMap.setView([s.latitud, s.longitud], 15);
+
+            document.getElementById('sede-form-title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Editando Sede #${s.id}`;
+            document.getElementById('btn-sede-submit').innerText = "Actualizar Sede";
+            document.getElementById('btn-sede-cancel').style.display = "block";
+            switchSection('sec-sedes');
+        }
+
+        function cancelSedeEdit() {
+            document.getElementById('form-sede').reset();
+            document.getElementById('sede-edit-id').value = '';
+            document.getElementById('sede-form-title').innerHTML = `<i class="fa-solid fa-hotel"></i> Registrar Nueva Sede`;
+            document.getElementById('btn-sede-submit').innerText = "Guardar Sede con Tarifas";
+            document.getElementById('btn-sede-cancel').style.display = "none";
+        }
+
+        async function handleSaveSede(e) {
+            e.preventDefault();
+            if (!hasActiveSubscription) { showToast("Requiere suscripción activa para operar sedes", true); return; }
+
+            const editId = document.getElementById('sede-edit-id').value;
+            const autoDia = parseFloat(document.getElementById('sede-auto-dia').value);
+            const autoNoche = parseFloat(document.getElementById('sede-auto-noche').value);
+            const motoDia = parseFloat(document.getElementById('sede-moto-dia').value);
+            const motoNoche = parseFloat(document.getElementById('sede-moto-noche').value);
+            const horaDia = parseInt(document.getElementById('sede-hora-dia').value);
+            const horaNoche = parseInt(document.getElementById('sede-hora-noche').value);
+
+            const payload = {
+                nombre: document.getElementById('sede-nombre').value,
+                direccion: document.getElementById('sede-direccion').value,
+                latitud: parseFloat(document.getElementById('sede-lat').value),
+                longitud: parseFloat(document.getElementById('sede-lon').value),
+                propietario_id: propietarioId,
+                tarifa_hora: autoDia,
+                tarifa_auto_dia: autoDia,
+                tarifa_auto_noche: autoNoche,
+                tarifa_moto_dia: motoDia,
+                tarifa_moto_noche: motoNoche,
+                hora_inicio_dia: horaDia,
+                hora_inicio_noche: horaNoche
+            };
+
+            try {
+                let res;
+                if (editId) {
+                    res = await fetch(`${API_ESTACIONAMIENTOS}/sedes/${editId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    res = await fetch(`${API_ESTACIONAMIENTOS}/sedes/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                if (res.ok) {
+                    showToast(editId ? 'Sede actualizada con éxito' : 'Sede registrada con éxito');
+                    cancelSedeEdit();
+                    await loadSedes();
+                    await checkSuscripcion();
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || 'Error al guardar sede', true);
+                }
+            } catch(e) {
+                showToast("Error de conexión", true);
+            }
+        }
+
+        async function toggleEstadoSede(sedeId, nuevoEstado) {
+            try {
+                const res = await fetch(`${API_ESTACIONAMIENTOS}/sedes/${sedeId}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ activa: nuevoEstado })
+                });
+                if (res.ok) {
+                    showToast(`Sede #${sedeId} ${nuevoEstado ? 'activada' : 'pausada'}`);
+                    await loadSedes();
+                } else {
+                    showToast('No se pudo actualizar el estado de la sede', true);
+                }
+            } catch(e) { showToast('Error de conexión', true); }
+        }
+
+        // ================= GESTIÓN DE PERSONAL (OPERADORES) =================
+        async function loadOperadores() {
+            try {
+                const res = await fetch(`${API_USUARIOS}/operadores`, { headers: { 'Authorization': `Bearer ${token}` }});
+                if (!res.ok) throw new Error('Error al cargar operadores');
+                operadoresCache = await res.json();
+                
+                document.getElementById('badge-op-count').innerText = `${operadoresCache.length} operadores`;
+                const tbody = document.getElementById('operadores-tbody');
+                tbody.innerHTML = '';
+
+                if (operadoresCache.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No has contratado operadores todavía.</td></tr>';
+                    return;
+                }
+
+                operadoresCache.forEach(op => {
+                    const sede = ownerSedesCache.find(s => s.id === op.sede_id);
+                    const sedeNombre = sede ? sede.nombre : `Sede #${op.sede_id || 'N/A'}`;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong style="color:var(--text-main);">${op.nombre}</strong></td>
+                        <td style="color:var(--text-muted); font-size:0.85rem;">${op.email}</td>
+                        <td><span style="color:var(--accent); font-weight:600;"><i class="fa-solid fa-warehouse"></i> ${sedeNombre}</span></td>
+                        <td>
+                            <span class="status-badge ${op.activo ? 'activo' : 'bloqueado'}">
+                                ${op.activo ? 'Habilitado' : 'Suspendido'}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="toggleEstadoOperador(${op.id})" class="btn-action" title="${op.activo ? 'Suspender' : 'Reactivar'}" style="color:${op.activo ? '#ef4444' : '#10b981'};">
+                                    <i class="fa-solid ${op.activo ? 'fa-ban' : 'fa-check'}"></i>
+                                </button>
+                                <button onclick="eliminarOperador(${op.id})" class="btn-action" title="Eliminar" style="color:#ef4444;">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) {
+                console.error("Error operadores:", e);
+            }
+        }
+
+        async function handleCreateOperador(e) {
+            e.preventDefault();
+            if (!hasActiveSubscription) { showToast("Requiere suscripción activa para contratar operadores", true); return; }
+
+            const payload = {
+                nombre: document.getElementById('operador-nombre').value,
+                email: document.getElementById('operador-email').value,
+                password: document.getElementById('operador-pass').value,
+                sede_id: parseInt(document.getElementById('operador-sede').value)
+            };
+
+            try {
+                const res = await fetch(`${API_USUARIOS}/operadores`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showToast('Operador registrado exitosamente');
+                    document.getElementById('form-operador').reset();
+                    await loadOperadores();
+                    await checkSuscripcion();
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || 'Error al registrar operador', true);
+                }
+            } catch(e) { showToast('Error de conexión', true); }
+        }
+
+        async function toggleEstadoOperador(id) {
+            try {
+                const res = await fetch(`${API_USUARIOS}/operadores/${id}/toggle-activo`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast('Estado del operador actualizado');
+                    await loadOperadores();
+                } else {
+                    showToast('No se pudo modificar el operador', true);
+                }
+            } catch(e) { showToast('Error de conexión', true); }
+        }
+
+        async function eliminarOperador(id) {
+            if (!confirm('¿Seguro que deseas dar de baja definitivamente a este operador?')) return;
+            try {
+                const res = await fetch(`${API_USUARIOS}/operadores/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast('Operador eliminado');
+                    await loadOperadores();
+                    await checkSuscripcion();
+                } else {
+                    showToast('Error al eliminar operador', true);
+                }
+            } catch(e) { showToast('Error de conexión', true); }
+        }
+
+        // ================= GESTIÓN DE ESPACIOS (SLOTS) =================
+        function toggleEspacioModo(m) {
+            document.getElementById('grp-individual').style.display = m === 'lote' ? 'none' : 'flex';
+            document.getElementById('grp-lote').style.display = m === 'lote' ? 'flex' : 'none';
+        }
+
+        async function handleCreateEspacio(e) {
+            e.preventDefault();
+            const sid = parseInt(document.getElementById('espacio-sede').value);
+            const modo = document.getElementById('espacio-modo').value;
+            const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+            try {
+                let res;
+                const tipoVehiculo = document.getElementById('espacio-tipo-vehiculo').value || 'auto';
+                if (modo === 'individual') {
+                    const num = document.getElementById('espacio-numero').value;
+                    res = await fetch(`${API_ESTACIONAMIENTOS}/espacios/`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ sede_id: sid, numero: num, tipo_vehiculo: tipoVehiculo, estado: 'libre' })
+                    });
+                } else {
+                    const prefijo = document.getElementById('espacio-prefijo').value;
+                    const cantidad = parseInt(document.getElementById('espacio-cantidad').value);
+                    res = await fetch(`${API_ESTACIONAMIENTOS}/espacios/lote`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ sede_id: sid, prefijo, tipo_vehiculo: tipoVehiculo, cantidad })
+                    });
+                }
+
+                if (res.ok) {
+                    showToast('Cajones registrados con éxito');
+                    document.getElementById('form-espacio').reset();
+                    await loadSupervisionAndChart();
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || 'Error al crear espacios', true);
+                }
+            } catch (err) { showToast('Error de conexión', true); }
+        }
+
+        async function eliminarEspacio(espacioId) {
+            if (!confirm('¿Seguro de eliminar este slot?')) return;
+            try {
+                const res = await fetch(`${API_ESTACIONAMIENTOS}/espacios/${espacioId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast(`Slot #${espacioId} eliminado`);
+                    await loadSupervisionAndChart();
+                } else {
+                    showToast('No se pudo eliminar el espacio', true);
+                }
+            } catch(e) { showToast('Error de conexión', true); }
+        }
+
+        async function loadSupervisionAndChart() {
+            try {
+                allSpacesCache = [];
+                let tLibres = 0, tRes = 0, tOcu = 0;
+
+                for (const s of ownerSedesCache) {
+                    const espResp = await fetch(`${API_ESTACIONAMIENTOS}/espacios/sede/${s.id}`);
+                    if (espResp.ok) {
+                        const espacios = await espResp.json();
+                        espacios.forEach(esp => {
+                            esp.sede_nombre = s.nombre;
+                            allSpacesCache.push(esp);
+                            if (esp.estado === 'libre') tLibres++;
+                            else if (esp.estado === 'reservado') tRes++;
+                            else tOcu++;
+                        });
+                    }
+                }
+
+                const totalEspacios = tLibres + tRes + tOcu;
+                const totalComprometidos = tRes + tOcu;
+                const pctOcupacion = totalEspacios > 0 ? Math.round((totalComprometidos / totalEspacios) * 100) : 0;
+
+                document.getElementById('stat-libres').innerText = tLibres;
+                document.getElementById('stat-reservados').innerText = tRes;
+                document.getElementById('stat-ocupados').innerText = tOcu;
+                const statTotal = document.getElementById('stat-total-espacios');
+                if (statTotal) statTotal.innerText = totalEspacios;
+
+                const txtOcup = document.getElementById('txt-ocupacion-pct');
+                const barOcup = document.getElementById('bar-ocupacion-global');
+                if (txtOcup) txtOcup.innerText = `${pctOcupacion}%`;
+                if (barOcup) barOcup.style.width = `${pctOcupacion}%`;
+
+                renderSlotsTable(allSpacesCache);
+
+                // --- Calcular Ganancias & Gráfico con soporte Multi-Sede ---
+                const selectedSedeFilter = document.getElementById('filter-finanzas-sede') ? document.getElementById('filter-finanzas-sede').value : "";
+                
+                // Consultar directamente los pagos donde este propietario es el receptor
+                let pagosMiProp = [];
+                try {
+                    const pagosResp = await fetch(`${API_PAGOS}/pagos/propietario/${propietarioId}`);
+                    if (pagosResp.ok) {
+                        pagosMiProp = await pagosResp.json();
+                    }
+                } catch(e) {
+                    // Fallback
+                    const fallbackResp = await fetch(`${API_PAGOS}/pagos/`);
+                    const allP = await fallbackResp.json();
+                    pagosMiProp = allP.filter(p => p.receptor_id == propietarioId);
+                }
+
+                // Filtrar por sede seleccionada si el usuario eligió una
+                if (selectedSedeFilter) {
+                    const sedeIdNum = parseInt(selectedSedeFilter);
+                    const espaciosSede = allSpacesCache.filter(e => e.sede_id === sedeIdNum).map(e => e.id);
+                    
+                    // Traer reservas para machear si el pago no traía sede_id directamente
+                    const resResp = await fetch(`${API_RESERVAS}/reservas/`);
+                    const resAll = await resResp.json();
+                    const reservasSedeIds = resAll.filter(r => espaciosSede.includes(r.espacio_id)).map(r => r.id);
+
+                    pagosMiProp = pagosMiProp.filter(p => 
+                        p.sede_id === sedeIdNum || (p.reserva_id && reservasSedeIds.includes(p.reserva_id))
+                    );
+                }
+                
+                let totalGanancia = 0;
+                const dailyRev = {};
+
+                pagosMiProp.forEach(p => {
+                    const st = (p.estado || '').toLowerCase();
+                    const isAprobado = (st === 'pagado' || st === 'completado' || st === 'aprobado');
+                    if (isAprobado) {
+                        totalGanancia += p.monto;
+                        const dateStr = new Date(p.fecha_pago).toLocaleDateString('es-PE', { month:'short', day:'numeric' });
+                        dailyRev[dateStr] = (dailyRev[dateStr] || 0) + p.monto;
+                    }
+                });
+                
+                document.getElementById('stat-ganancia').innerText = totalGanancia.toFixed(2);
+                
+                const labels = Object.keys(dailyRev);
+                const data = labels.map(l => dailyRev[l]);
+                
+                if (chartInstance) chartInstance.destroy();
+                const ctx = document.getElementById('revenueChart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels.length ? labels : ['Sin ingresos en periodo'],
+                        datasets: [{ 
+                            label: selectedSedeFilter ? 'Ganancias de Sede S/.' : 'Ganancias Consolidadas S/.', 
+                            data: data.length ? data : [0], 
+                            backgroundColor: selectedSedeFilter ? 'rgba(16, 185, 129, 0.7)' : 'rgba(6, 182, 212, 0.7)', 
+                            borderRadius: 6 
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        plugins: { legend: { display: false } }, 
+                        scales: { y: { beginAtZero: true } } 
+                    }
+                });
+
+                // Renderizar tabla de transacciones de pagos
+                renderPagosRecibidos(pagosMiProp);
+
+            } catch (err) {
+                console.error("Error en supervisión y finanzas:", err);
+            }
+        }
+
+        function renderPagosRecibidos(pagos) {
+            const tbody = document.getElementById('pagos-recibidos-tbody');
+            const badge = document.getElementById('badge-pagos-count');
+            if (badge) badge.innerText = `${pagos.length} transacciones`;
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            if (pagos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay transacciones registradas para el filtro seleccionado.</td></tr>';
+                return;
+            }
+
+            // Mapa de nombres de sedes
+            const sedesMap = {};
+            ownerSedesCache.forEach(s => sedesMap[s.id] = s.nombre);
+
+            pagos.forEach(p => {
+                const st = (p.estado || '').toLowerCase();
+                const badgeClass = (st === 'pagado' || st === 'completado') ? 'libre' : (st === 'pendiente' ? 'reservado' : 'ocupado');
+                const fecha = p.fecha_pago ? new Date(p.fecha_pago).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : 'N/D';
+                const sedeNombre = p.sede_id && sedesMap[p.sede_id] ? sedesMap[p.sede_id] : (p.sede_id ? `Sede #${p.sede_id}` : 'General');
+                
+                // Diferenciar si es Reserva Online o Cobro Manual en el mismo estacionamiento
+                const esManualCaseta = (p.metodo_pago === 'efectivo' || !p.reserva_id);
+                const tipoOperacionHtml = esManualCaseta
+                    ? `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.78rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Manual (Caseta)</span>`
+                    : `<span style="background:rgba(6,182,212,0.15); color:var(--accent); padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.78rem;"><i class="fa-solid fa-mobile-screen-button"></i> Reserva Online</span>`;
+
+                const canalDestinoHtml = esManualCaseta
+                    ? `<span style="color:var(--text-muted); font-size:0.83rem;"><i class="fa-solid fa-money-bill-wave" style="color:#10b981;"></i> Caja física del Operador</span>`
+                    : `<span style="font-size:0.83rem; color:var(--text-main);"><i class="fa-solid fa-building-columns" style="color:var(--accent);"></i> ${p.cuenta_destino || 'Cuenta Bancaria Registrada'}</span>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 700; color: var(--primary);">#${p.id}</td>
+                        <td style="font-size: 0.85rem; color: var(--text-muted);">${fecha}</td>
+                        <td><span style="font-weight: 600;"><i class="fa-solid fa-warehouse" style="font-size:0.8rem; margin-right:4px;"></i>${sedeNombre}</span></td>
+                        <td>${tipoOperacionHtml}</td>
+                        <td style="font-weight: 800; color: #10b981; font-size: 1rem;">S/. ${Number(p.monto).toFixed(2)}</td>
+                        <td>${canalDestinoHtml}</td>
+                        <td><span class="status-badge ${badgeClass}" style="text-transform: capitalize;">${st}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderSlotsTable(slots) {
+            const tbody = document.getElementById('supervision-tbody');
+            tbody.innerHTML = '';
+            if (slots.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No hay espacios registrados en tus sedes.</td></tr>';
+                return;
+            }
+
+            slots.forEach(esp => {
+                const isMoto = (esp.tipo_vehiculo || 'auto').toLowerCase() === 'moto';
+                const badgeVehiculo = isMoto
+                    ? `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;"><i class="fa-solid fa-motorcycle"></i> Moto</span>`
+                    : `<span style="background:rgba(6,182,212,0.15); color:var(--accent); padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;"><i class="fa-solid fa-car"></i> Auto</span>`;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${esp.sede_nombre}</td>
+                    <td>${badgeVehiculo}</td>
+                    <td><strong>${esp.numero}</strong></td>
+                    <td><span class="status-badge ${esp.estado}">${esp.estado.toUpperCase()}</span></td>
+                    <td>
+                        <button onclick="eliminarEspacio(${esp.id})" class="btn-action" title="Eliminar Slot" style="color:#ef4444;">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterSlotsBySede(sedeId) {
+            if (!sedeId) {
+                renderSlotsTable(allSpacesCache);
+            } else {
+                const filtered = allSpacesCache.filter(e => e.sede_id === parseInt(sedeId));
+                renderSlotsTable(filtered);
+            }
+        }
+
+        function exportSlotsExcel() {
+            if (!allSpacesCache || allSpacesCache.length === 0) return showToast('No hay espacios para exportar', true);
+            const headers = ['ID', 'Sede', 'Numero', 'Estado'];
+            const data = allSpacesCache.map(e => [e.id, e.sede_nombre, e.numero, e.estado]);
+            try {
+                if (typeof XLSX === 'undefined') throw new Error('Biblioteca XLSX no cargada');
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                XLSX.utils.book_append_sheet(wb, ws, 'Slots');
+                XLSX.writeFile(wb, `SmartPark_Slots_${new Date().toISOString().slice(0,10)}.xlsx`);
+                showToast('Archivo Excel (.xlsx) de slots descargado');
+            } catch(e) {
+                exportSlotsCSV();
+            }
+        }
+
+        function exportSlotsCSV() {
+            if (!allSpacesCache || allSpacesCache.length === 0) return showToast('No hay espacios para exportar', true);
+            const headers = ['ID', 'Sede', 'Numero', 'Estado'];
+            const data = allSpacesCache.map(e => [e.id, e.sede_nombre, e.numero, e.estado]);
+            const processRow = (row) => row.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(',');
+            const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers, ...data].map(processRow).join('\r\n');
+            const link = document.createElement('a');
+            link.setAttribute('href', encodeURI(csvContent));
+            link.setAttribute('download', `SmartPark_Slots_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Archivo CSV de slots descargado');
+        }
+
+        // ================= INCIDENCIAS =================
+        async function loadIncidencias() {
+            try {
+                const resp = await fetch(`${API_ESTACIONAMIENTOS}/incidencias/`);
+                const all = await resp.json();
+                const myIncidents = all.filter(inc => sedesIds.includes(inc.sede_id));
+                const list = document.getElementById('incidencias-list');
+                const badge = document.getElementById('badge-incidencias-count');
+                badge.innerText = `${myIncidents.length} incidencias`;
+                list.innerHTML = '';
+
+                if (myIncidents.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">Sin incidencias reportadas en tus sedes.</p>';
+                    return;
+                }
+
+                myIncidents.forEach(inc => {
+                    const sede = ownerSedesCache.find(s => s.id === inc.sede_id);
+                    const div = document.createElement('div');
+                    div.className = 'incidencia-row';
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-weight: 600; font-size:0.9rem;">Sede: ${sede ? sede.nombre : inc.sede_id}</div>
+                            <div style="font-size: 0.85rem; margin-top: 3px; color:#fca5a5;">${inc.descripcion}</div>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">${new Date(inc.fecha_reporte).toLocaleDateString()}</div>
+                    `;
+                    list.appendChild(div);
+                });
+            } catch (e) {}
+        }
+
+        // ================= MODAL DE PAGO CULQI SUSCRIPCION =================
+        let planSeleccionadoId = null;
+        let culqiSuscripcionPagoId = null;
+        let culqiSuscripcionMonto = 0;
+        let culqiSuscripcionPlanId = null;
+
+        function openPaymentModal(id, nombre, precio) {
+            planSeleccionadoId = id;
+            culqiSuscripcionPlanId = id;
+            culqiSuscripcionMonto = precio;
+            document.getElementById('pay-amount-display').innerText = `S/. ${precio.toFixed(2)}`;
+            document.getElementById('pay-plan-display').innerText = `Plan ${nombre}`;
+            document.getElementById('payment-modal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').style.display = 'none';
+        }
+
+        async function iniciarCheckoutCulqiSuscripcion() {
+            const btnText = document.getElementById('pay-btn-text');
+            const spinner = document.getElementById('pay-spinner');
+            const btn = document.getElementById('btn-process-pay');
+
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+            btn.disabled = true;
+
+            try {
+                // 1. Inicializar suscripción y orden de pago en usuarios
+                const res = await fetch(`${API_USUARIOS}/suscripcion/comprar?plan_id=${culqiSuscripcionPlanId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const subData = await res.json();
+                if (!res.ok) throw new Error(subData.detail || 'No se pudo generar la orden de suscripción');
+
+                culqiSuscripcionPagoId = subData.pago_id;
+                if (!culqiSuscripcionPagoId) {
+                    // Fallback: consultar el pago generado
+                    const rPagos = await fetch(`${API_PAGOS}/pagos/suscripcion/${subData.id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const pagosList = await rPagos.json();
+                    if (pagosList && pagosList.length > 0) {
+                        culqiSuscripcionPagoId = pagosList[0].id;
+                    }
+                }
+
+                if (!culqiSuscripcionPagoId) {
+                    throw new Error("No se pudo obtener el identificador de orden de pago.");
+                }
+
+                // 2. Obtener llave pública de la plataforma desde el backend de pagos
+                const resCfg = await fetch(`${API_PAGOS}/pagos/config-publica?pago_id=${culqiSuscripcionPagoId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const cfgData = await resCfg.json();
+                if (!resCfg.ok) throw new Error(cfgData.detail || 'No se pudo obtener la configuración pública de Culqi');
+
+                const plataformaPublicKey = cfgData.public_key;
+                const montoCentimos = Math.round(cfgData.monto * 100);
+
+                if (!window.Culqi) {
+                    throw new Error("La pasarela Culqi no cargó correctamente en el navegador.");
+                }
+
+                // 3. Configurar Culqi Checkout 2.0 (v4)
+                window.Culqi.publicKey = plataformaPublicKey;
+                window.Culqi.settings({
+                    title: 'SmartPark Platform',
+                    currency: 'PEN',
+                    amount: montoCentimos,
+                    description: `Membresía SaaS Plan #${culqiSuscripcionPlanId}`
+                });
+
+                window.Culqi.options({
+                    lang: 'auto',
+                    installments: false,
+                    modal: true,
+                    paymentMethods: {
+                        tarjeta: true,
+                        yape: true,
+                        billetera: true,
+                        bancaMovil: false,
+                        agente: false,
+                        cuotealo: false
+                    }
+                });
+
+                closePaymentModal();
+                window.Culqi.open();
+
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // Callback oficial de Culqi Checkout
+        window.culqi = async function() {
+            if (window.Culqi.token) {
+                const tokenId = window.Culqi.token.id;
+                const emailCliente = window.Culqi.token.email || 'propietario@smartpark.com';
+                window.Culqi.close();
+
+                showToast("Procesando cobro de suscripción con Culqi 2.0...");
+
+                try {
+                    const response = await fetch(`${API_PAGOS}/pagos/culqi/cobrar`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            pago_id: culqiSuscripcionPagoId,
+                            token_id: tokenId,
+                            email: emailCliente
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'El cobro no fue aprobado por Culqi');
+                    }
+
+                    showToast("¡Pago aprobado con éxito! Tu plan SaaS ha sido activado.");
+                    await checkSuscripcion();
+                    await loadSedes();
+
+                } catch (err) {
+                    showToast(err.message, true);
+                }
+            } else if (window.Culqi.error) {
+                showToast(`Error Culqi: ${window.Culqi.error.user_message || 'Transacción cancelada'}`, true);
+            }
+        };
+    </script>
+</body>
+</html>
