@@ -57,3 +57,11 @@ def verify_internal_key(x_internal_key: Optional[str] = Header(None, alias="X-In
             detail="Acceso interno denegado: clave inter-servicio inválida"
         )
     return True
+
+def require_propietario_o_admin(current_user: CurrentUser = Depends(get_current_user)):
+    if current_user.rol not in ("propietario", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso restringido a propietarios y administradores."
+        )
+    return current_user

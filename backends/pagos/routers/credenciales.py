@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import CredencialCulqi
-from auth import get_current_user, require_propietario, CurrentUser
+from auth import get_current_user, require_propietario_o_admin, CurrentUser
 from crypto import cifrar, descifrar
 
 router = APIRouter(prefix="/credenciales", tags=["credenciales"])
@@ -40,7 +40,7 @@ def enmascarar_pk(pk: str) -> str:
 def guardar_credenciales(
     payload: GuardarCredencialesRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_propietario)
+    current_user: CurrentUser = Depends(require_propietario_o_admin)
 ):
     pk = payload.public_key.strip()
     sk = payload.secret_key.strip()
@@ -92,7 +92,7 @@ def guardar_credenciales(
 @router.post("/verificar", response_model=VerificarCredencialesResponse)
 async def verificar_credenciales(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_propietario)
+    current_user: CurrentUser = Depends(require_propietario_o_admin)
 ):
     cred = db.query(CredencialCulqi).filter(CredencialCulqi.propietario_id == current_user.id).first()
     if not cred:
@@ -166,7 +166,7 @@ async def verificar_credenciales(
 @router.get("/estado", response_model=EstadoCredencialesResponse)
 def estado_credenciales(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_propietario)
+    current_user: CurrentUser = Depends(require_propietario_o_admin)
 ):
     cred = db.query(CredencialCulqi).filter(CredencialCulqi.propietario_id == current_user.id).first()
     if not cred:
