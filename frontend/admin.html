@@ -834,7 +834,7 @@
                                     <th>Plan</th>
                                     <th>Vencimiento</th>
                                     <th>Estado</th>
-                                    <th>Acción Comercial</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="suscripciones-tbody">
@@ -990,6 +990,33 @@
 
     </main>
 
+    <!-- Modal Reutilizable: Cambiar Plan de Membresía (Admin) -->
+    <div class="payment-modal-overlay" id="modal-cambiar-plan-admin" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); z-index:9999; align-items:center; justify-content:center;">
+        <div class="card" style="width: 500px; max-width:92%; background: var(--bg-color); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--glass-border); padding-bottom:12px;">
+                <h3 style="font-size: 1.15rem; margin:0; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-arrows-rotate" style="color: var(--primary);"></i> Cambiar Plan de Membresía
+                </h3>
+                <button type="button" onclick="cerrarModalCambiarPlanAdmin()" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px;" id="modal-admin-desc">
+                Selecciona el nuevo plan para el propietario. Su membresía anterior quedará como cancelada y la nueva se activará por 30 días.
+            </p>
+
+            <div id="modal-admin-planes-options" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+                <!-- Opciones de planes renderizadas dinámicamente -->
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" onclick="cerrarModalCambiarPlanAdmin()" class="btn-secondary" style="padding:10px 16px;">Cancelar</button>
+                <button type="button" id="btn-admin-confirmar-cambio-plan" onclick="confirmarCambioPlanAdmin()" class="btn-submit" style="padding:10px 18px;" disabled>
+                    <i class="fa-solid fa-check"></i> Confirmar Cambio
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const API_USUARIOS = '/api';
@@ -1130,22 +1157,23 @@
                 }
             };
 
-            const pingService = async (url) => {
+            const pingService = async (url, options = {}) => {
                 const start = performance.now();
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 4000);
-                    const res = await fetch(url, { signal: controller.signal });
+                    const res = await fetch(url, { signal: controller.signal, ...options });
                     clearTimeout(timeoutId);
                     const end = performance.now();
-                    return { ok: res.ok, ms: Math.round(end - start) };
+                    const isOperativo = res.status < 500;
+                    return { ok: isOperativo, ms: Math.round(end - start) };
                 } catch(e) {
                     return { ok: false, ms: 0 };
                 }
             };
 
             const [u, e, r, p] = await Promise.all([
-                pingService(`/api/usuarios/`),
+                pingService(`/api/usuarios/`, { headers: { 'Authorization': `Bearer ${token}` } }),
                 pingService(`${API_ESTACIONAMIENTOS}/`),
                 pingService(`${API_RESERVAS}/`),
                 pingService(`${API_PAGOS}/`)
@@ -1439,7 +1467,9 @@
                 }
 
                 // 3. Obtener reservas
-                const res = await fetch(`${API_RESERVAS}/reservas/`);
+                const res = await fetch(`${API_RESERVAS}/reservas/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 if (!res.ok) return;
                 const reservas = await res.json();
                 
@@ -1602,11 +1632,23 @@
                 const subsBody = document.getElementById('suscripciones-tbody');
                 subsBody.innerHTML = '';
                 
-                const activeSubsCount = subs.filter(s => s.estado === 'activa').length;
-                document.getElementById('badge-subs-count').innerText = `${activeSubsCount} activas (${subs.length} total)`;
-
-                if(subs.length === 0) subsBody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Sin membresías registradas.</td></tr>`;
+                // Mostrar 1 sola fila por propietario (solo la ACTIVA o la más reciente)
+                const subsPorPropietario = {};
                 subs.forEach(s => {
+                    const pid = s.propietario_id;
+                    if (!subsPorPropietario[pid]) {
+                        subsPorPropietario[pid] = s;
+                    } else if (subsPorPropietario[pid].estado !== 'activa' && s.estado === 'activa') {
+                        subsPorPropietario[pid] = s;
+                    }
+                });
+                const subsUnicas = Object.values(subsPorPropietario);
+
+                const activeSubsCount = subsUnicas.filter(s => s.estado === 'activa').length;
+                document.getElementById('badge-subs-count').innerText = `${activeSubsCount} activas (${subsUnicas.length} propietarios)`;
+
+                if(subsUnicas.length === 0) subsBody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Sin membresías registradas.</td></tr>`;
+                subsUnicas.forEach(s => {
                     const owner = propietariosCache.find(p => p.id === s.propietario_id);
                     const ownerName = owner ? owner.nombre : `Prop #${s.propietario_id}`;
                     const plan = planesCache.find(p => p.id === s.plan_id);
@@ -1616,26 +1658,138 @@
                     const badgeClass = isActiva ? 'libre' : 'ocupado';
 
                     subsBody.innerHTML += `<tr>
-                        <td><strong>${ownerName}</strong></td>
-                        <td>${planName}</td>
-                        <td><span style="font-size:0.8rem;">${new Date(s.fecha_vencimiento).toLocaleDateString()}</span></td>
+                        <td><strong>${ownerName}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">ID Propietario: #${s.propietario_id}</span></td>
+                        <td><strong>${planName}</strong></td>
+                        <td><span style="font-size:0.85rem;">${new Date(s.fecha_vencimiento).toLocaleDateString()}</span></td>
                         <td><span class="status-badge ${badgeClass}">${s.estado.toUpperCase()}</span></td>
                         <td>
+                            <button onclick="abrirModalCambiarPlanAdmin(${s.propietario_id}, ${s.plan_id}, '${ownerName.replace(/'/g, "\\'")}')" class="btn-action" style="color:var(--accent);" title="Cambiar Plan">
+                                <i class="fa-solid fa-arrows-rotate"></i> Cambiar Plan
+                            </button>
+                            <button onclick="toggleSubscriptionEstado(${s.id}, 'activa', 30)" class="btn-action" title="Extender +30 días">
+                                <i class="fa-solid fa-calendar-plus"></i> +30 días
+                            </button>
                             ${isActiva 
-                                ? `<button onclick="toggleSubscriptionEstado(${s.id}, 'cancelada')" class="btn-action" style="color:#ef4444;" title="Suspender/Cancelar membresía">
-                                     <i class="fa-solid fa-ban"></i> Suspender
+                                ? `<button onclick="toggleSubscriptionEstado(${s.id}, 'cancelada')" class="btn-action" style="color:#ef4444;" title="Cancelar membresía">
+                                     <i class="fa-solid fa-ban"></i> Cancelar
                                    </button>`
                                 : `<button onclick="toggleSubscriptionEstado(${s.id}, 'activa')" class="btn-action" style="color:#10b981;" title="Reactivar membresía">
                                      <i class="fa-solid fa-rotate-left"></i> Reactivar
                                    </button>`
                             }
-                            <button onclick="toggleSubscriptionEstado(${s.id}, 'activa', 30)" class="btn-action" title="Renovar +30 días">
-                                <i class="fa-solid fa-calendar-plus"></i> +30d
-                            </button>
                         </td>
                     </tr>`;
                 });
             } catch(e) {}
+        }
+
+        // ================= MODAL CAMBIAR PLAN (ADMIN) =================
+        let adminTargetPropId = null;
+        let adminCurrentPlanId = null;
+        let adminSelectedPlanId = null;
+
+        function abrirModalCambiarPlanAdmin(propId, currentPlanId, propNombre) {
+            adminTargetPropId = propId;
+            adminCurrentPlanId = currentPlanId;
+            adminSelectedPlanId = null;
+
+            document.getElementById('modal-admin-desc').innerHTML = `
+                Cambiando plan para <strong>${propNombre}</strong> (Propietario #${propId}). Su membresía actual quedará cancelada y la nueva se activará inmediatamente por 30 días.
+            `;
+
+            const container = document.getElementById('modal-admin-planes-options');
+            container.innerHTML = '';
+
+            planesCache.forEach(p => {
+                const esActual = (adminCurrentPlanId === p.id);
+                const isSelected = (adminSelectedPlanId === p.id);
+
+                const item = document.createElement('div');
+                item.className = 'plan-option-card';
+                item.style.cssText = `
+                    padding: 14px 16px;
+                    border-radius: 12px;
+                    border: 2px solid ${isSelected ? 'var(--primary)' : 'var(--glass-border)'};
+                    background: ${isSelected ? 'rgba(2, 132, 199, 0.12)' : (esActual ? 'rgba(255, 255, 255, 0.02)' : 'rgba(15, 23, 42, 0.5)')};
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    cursor: ${esActual ? 'not-allowed' : 'pointer'};
+                    opacity: ${esActual ? '0.6' : '1'};
+                    transition: all 0.2s;
+                `;
+
+                item.innerHTML = `
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <strong style="color:${isSelected ? 'var(--accent)' : 'var(--text-main)'}; font-size:1rem;">${p.nombre}</strong>
+                            ${esActual ? '<span class="status-badge libre" style="font-size:0.65rem;">Actual</span>' : ''}
+                        </div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
+                            ${p.max_sedes} Sedes &bull; ${p.max_operadores} Operadores
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:1.1rem; font-weight:800; color:var(--text-main);">S/. ${Number(p.precio).toFixed(2)}</span>
+                        <span style="font-size:0.75rem; color:var(--text-muted);">/mes</span>
+                    </div>
+                `;
+
+                if (!esActual) {
+                    item.onclick = () => {
+                        adminSelectedPlanId = p.id;
+                        abrirModalCambiarPlanAdmin(propId, currentPlanId, propNombre);
+                    };
+                }
+
+                container.appendChild(item);
+            });
+
+            const btnConfirm = document.getElementById('btn-admin-confirmar-cambio-plan');
+            btnConfirm.disabled = !adminSelectedPlanId || (adminSelectedPlanId === adminCurrentPlanId);
+
+            document.getElementById('modal-cambiar-plan-admin').style.display = 'flex';
+        }
+
+        function cerrarModalCambiarPlanAdmin() {
+            document.getElementById('modal-cambiar-plan-admin').style.display = 'none';
+            adminTargetPropId = null;
+            adminSelectedPlanId = null;
+        }
+
+        async function confirmarCambioPlanAdmin() {
+            if (!adminSelectedPlanId || !adminTargetPropId) return;
+
+            const btnConfirm = document.getElementById('btn-admin-confirmar-cambio-plan');
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Actualizando...';
+
+            try {
+                const res = await fetch(`/api/membresias/cambiar-plan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        propietario_id: adminTargetPropId,
+                        nuevo_plan_id: adminSelectedPlanId
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Error al cambiar plan');
+
+                showToast(`¡Plan del propietario #${adminTargetPropId} cambiado con éxito!`);
+                cerrarModalCambiarPlanAdmin();
+                await loadSaaS();
+
+            } catch(err) {
+                showToast(err.message, true);
+            } finally {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> Confirmar Cambio';
+            }
         }
 
         async function toggleSubscriptionEstado(subId, nuevoEstado, extenderDias = null) {

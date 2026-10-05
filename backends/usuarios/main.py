@@ -22,7 +22,7 @@ try:
         default_admin = Usuario(
             nombre="Admin Global",
             email="admin@smartpark.com",
-            password_hash=hash_password("admin123"),
+            password_hash=hash_password(os.getenv("ADMIN_PASSWORD", "admin123")),
             rol=RolUsuario.admin,
             activo=True
         )

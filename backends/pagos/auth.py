@@ -40,6 +40,14 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     except jwt.PyJWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
 
+def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[CurrentUser]:
+    if not credentials:
+        return None
+    try:
+        return get_current_user(credentials)
+    except HTTPException:
+        return None
+
 def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     if current_user.rol != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado: se requieren privilegios de administrador")

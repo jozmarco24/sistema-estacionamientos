@@ -495,37 +495,8 @@
         <!-- ================= SECCIÓN NUEVA: FINANZAS & COBROS ================= -->
         <section id="sec-finanzas" class="section-view">
 
-            <!-- Fila 1: Cuenta Bancaria Única y Gráfico de Ingresos -->
-            <div class="two-cols" style="margin-bottom: 24px;">
-                <!-- Datos Bancarios Únicos del Propietario -->
-                <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.35); background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 182, 212, 0.03) 100%);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div>
-                            <h2 class="card-title" style="margin-bottom:2px; color: #10b981;"><i class="fa-solid fa-building-columns"></i> Mi Cuenta de Cobro (100% Directo)</h2>
-                            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Los conductores pagan tus reservas directamente a esta cuenta única registrada a tu nombre (sin comisiones intermedias).</p>
-                        </div>
-                        <button onclick="guardarCuentaBancaria()" class="btn-action" style="background: #10b981; color: #000; font-weight:700; padding:8px 16px;"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Banco</label>
-                            <input type="text" id="bank-nombre" placeholder="Ej: BCP, BBVA, Interbank" style="padding:10px 12px; font-size:0.85rem;">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">N° de Cuenta</label>
-                            <input type="text" id="bank-cuenta" placeholder="Ej: 193-45678912-0-01" style="padding:10px 12px; font-size:0.85rem;">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">CCI / Yape / Plin</label>
-                            <input type="text" id="bank-cci" placeholder="Ej: 002-193-004567891201-14" style="padding:10px 12px; font-size:0.85rem;">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Titular / DNI / RUC</label>
-                            <input type="text" id="bank-titular" placeholder="Ej: Carlos Ramos (DNI 74812345)" style="padding:10px 12px; font-size:0.85rem;">
-                        </div>
-                    </div>
-                </div>
-
+            <!-- Fila 1: Gráfico de Ingresos Recaudados -->
+            <div style="margin-bottom: 24px;">
                 <!-- Gráfico de Ganancias con Selector de Sede -->
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -1007,7 +978,6 @@
         }
 
         async function refreshAll() {
-            await cargarCuentaBancaria();
             await cargarEstadoCredencialesCobros();
             await loadSedes();
             await loadOperadores();
@@ -1188,55 +1158,7 @@
             }
         }
 
-        // ================= GESTIÓN CUENTA BANCARIA ÚNICA =================
-        async function cargarCuentaBancaria() {
-            try {
-                const res = await fetch(`${API_USUARIOS}/perfil`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const user = await res.json();
-                    if (user.banco) document.getElementById('bank-nombre').value = user.banco;
-                    if (user.numero_cuenta) document.getElementById('bank-cuenta').value = user.numero_cuenta;
-                    if (user.cci_alias) document.getElementById('bank-cci').value = user.cci_alias;
-                    if (user.titular_cuenta) document.getElementById('bank-titular').value = user.titular_cuenta;
-                }
-            } catch(e) {
-                console.error("Error cargando cuenta bancaria:", e);
-            }
-        }
 
-        async function guardarCuentaBancaria() {
-            const banco = document.getElementById('bank-nombre').value.trim();
-            const numero_cuenta = document.getElementById('bank-cuenta').value.trim();
-            const cci_alias = document.getElementById('bank-cci').value.trim();
-            const titular_cuenta = document.getElementById('bank-titular').value.trim();
-
-            if (!banco || !numero_cuenta || !titular_cuenta) {
-                showToast("Por favor completa Banco, N° de Cuenta y Titular", true);
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_USUARIOS}/cuenta-bancaria`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ banco, numero_cuenta, cci_alias, titular_cuenta })
-                });
-
-                if (res.ok) {
-                    showToast("¡Cuenta bancaria única actualizada exitosamente!");
-                } else {
-                    const err = await res.json();
-                    showToast(err.detail || "Error al guardar cuenta bancaria", true);
-                }
-            } catch(e) {
-                showToast("Error de conexión al guardar cuenta bancaria", true);
-            }
-        }
 
         // ================= MAPAS (LEAFLET) =================
         function initializeMaps() {

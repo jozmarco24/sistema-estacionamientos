@@ -102,3 +102,10 @@ class SuscripcionResponse(BaseModel):
     pago_id: Optional[int] = None
     class Config:
         from_attributes = True
+
+class CambiarPlanRequest(BaseModel):
+    propietario_id: int
+    nuevo_plan_id: int
+
+# Alias para Membresía
+MembresiaResponse = SuscripcionResponse

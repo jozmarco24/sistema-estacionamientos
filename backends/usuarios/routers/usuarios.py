@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
+from datetime import datetime, timedelta, timezone
 from database import get_db
-from models import Usuario, RolUsuario, Vehiculo, Plan, Suscripcion
+from models import Usuario, RolUsuario, Vehiculo, Plan, Suscripcion, Membresia
 from schemas import (
     UsuarioCreate, UsuarioResponse, LoginRequest, TokenResponse, 
     SSOLoginRequest, UsuarioUpdate, OperadorCreate, VehiculoCreate, 
     VehiculoResponse, PlanResponse, PlanCreate, SuscripcionResponse,
-    CuentaBancariaUpdate
+    CuentaBancariaUpdate, CambiarPlanRequest, MembresiaResponse
 )
 import secrets
 from auth import (
@@ -375,10 +376,19 @@ async def comprar_suscripcion(plan_id: int, db: Session = Depends(get_db), curre
     res.pago_id = pago_id_creado
     return res
 
-# Administrador supervisando membresías
+# Administrador supervisando membresías (1 sola por propietario: activa o la más reciente)
 @router.get("/suscripciones/todas", response_model=List[SuscripcionResponse])
 def listar_todas_suscripciones(db: Session = Depends(get_db), admin: Usuario = Depends(require_admin)):
-    return db.query(Suscripcion).order_by(Suscripcion.id.desc()).all()
+    todas = db.query(Suscripcion).order_by(Suscripcion.id.desc()).all()
+    # Agrupar por propietario_id: priorizar membresía activa, si no la más reciente
+    por_propietario = {}
+    for s in todas:
+        pid = s.propietario_id
+        if pid not in por_propietario:
+            por_propietario[pid] = s
+        elif por_propietario[pid].estado != "activa" and s.estado == "activa":
+            por_propietario[pid] = s
+    return list(por_propietario.values())
 
 @router.put("/suscripciones/{id}/estado", response_model=SuscripcionResponse)
 def actualizar_estado_suscripcion(
@@ -434,3 +444,52 @@ def obtener_limites(propietario_id: int, db: Session = Depends(get_db)):
     if not plan:
         raise HTTPException(status_code=404, detail="Plan no encontrado")
     return {"max_sedes": plan.max_sedes, "max_operadores": plan.max_operadores}
+
+# ─────────────────────────────────────────────
+# Endpoints de cambio de plan / membresía
+# ─────────────────────────────────────────────
+@router.post("/membresias/cambiar-plan", response_model=MembresiaResponse)
+@router.post("/suscripcion/cambiar-plan", response_model=SuscripcionResponse)
+def cambiar_plan_membresia(
+    payload: CambiarPlanRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Regla: solo el admin o el propio propietario pueden cambiar el plan
+    if current_user.rol != RolUsuario.admin and current_user.id != payload.propietario_id:
+        raise HTTPException(status_code=403, detail="No autorizado para cambiar el plan de este propietario.")
+
+    # Validar que el nuevo plan exista y esté activo
+    nuevo_plan = db.query(Plan).filter(Plan.id == payload.nuevo_plan_id).first()
+    if not nuevo_plan:
+        raise HTTPException(status_code=404, detail="El plan seleccionado no existe.")
+
+    # Validar que el usuario objetivo sea propietario
+    propietario = db.query(Usuario).filter(Usuario.id == payload.propietario_id, Usuario.rol == RolUsuario.propietario).first()
+    if not propietario:
+        raise HTTPException(status_code=404, detail="Propietario no encontrado.")
+
+    # Regla: Un propietario solo puede tener UNA membresía activa a la vez.
+    # Al cambiar de plan, la(s) membresía(s) anterior(es) quedan como canceladas (historial).
+    anteriores = db.query(Suscripcion).filter(
+        Suscripcion.propietario_id == payload.propietario_id,
+        Suscripcion.estado == "activa"
+    ).all()
+    for s in anteriores:
+        s.estado = "cancelada"
+
+    # Crear la nueva membresía ACTIVA con vencimiento hoy + 30 días
+    ahora = datetime.now(timezone.utc)
+    nueva_membresia = Suscripcion(
+        propietario_id=payload.propietario_id,
+        plan_id=nuevo_plan.id,
+        estado="activa",
+        fecha_inicio=ahora,
+        fecha_vencimiento=ahora + timedelta(days=30)
+    )
+    db.add(nueva_membresia)
+    db.commit()
+    db.refresh(nueva_membresia)
+
+    return nueva_membresia
+

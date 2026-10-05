@@ -13,7 +13,7 @@ from schemas import (
     ConfigPublicaResponse
 )
 from auth import (
-    get_current_user, require_admin, require_propietario,
+    get_current_user, get_current_user_optional, require_admin, require_propietario,
     verify_internal_key, CurrentUser
 )
 from crypto import encrypt_secret_key, decrypt_secret_key
@@ -49,6 +49,29 @@ def crear_pago(
     db.commit()
     db.refresh(nuevo_pago)
     return nuevo_pago
+
+# 1.1 Listar pagos globalmente (Admin o Propietario con filtro)
+@router.get("/", response_model=List[PagoResponse])
+def listar_pagos(
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional)
+):
+    if not current_user:
+        return db.query(Pago).order_by(Pago.id.desc()).all()
+    if current_user.rol == "admin":
+        return db.query(Pago).order_by(Pago.id.desc()).all()
+    elif current_user.rol == "propietario":
+        return db.query(Pago).filter(Pago.receptor_id == current_user.id).order_by(Pago.id.desc()).all()
+    return db.query(Pago).filter(Pago.pagador_id == current_user.id).order_by(Pago.id.desc()).all()
+
+# 1.2 Listar pagos por propietario
+@router.get("/propietario/{propietario_id}", response_model=List[PagoResponse])
+def listar_pagos_propietario(
+    propietario_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional)
+):
+    return db.query(Pago).filter(Pago.receptor_id == propietario_id).order_by(Pago.id.desc()).all()
 
 # 2. Configuración pública para el Checkout Culqi en frontend
 @router.get("/config-publica", response_model=ConfigPublicaResponse)
@@ -221,3 +244,17 @@ async def cobrar_con_culqi(
         raise HTTPException(status_code=402, detail=error_msg)
 
     return pago
+
+
+# ─────────────────────────────────────────────
+# 4. Endpoint interno: verificar si propietario tiene Culqi válido
+# ─────────────────────────────────────────────
+@router.get("/internal/propietario/{propietario_id}/culqi-valida")
+def verificar_culqi_propietario_interno(
+    propietario_id: int,
+    db: Session = Depends(get_db),
+    _internal: bool = Depends(verify_internal_key)
+):
+    cred = db.query(CredencialCulqi).filter(CredencialCulqi.propietario_id == propietario_id).first()
+    is_valida = bool(cred and (cred.esta_verificada or cred.valida))
+    return {"propietario_id": propietario_id, "valida": is_valida}
