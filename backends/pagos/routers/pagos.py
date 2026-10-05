@@ -65,10 +65,7 @@ def obtener_config_publica(
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este pago")
 
     if pago.estado != EstadoPago.pendiente:
-        raise HTTPException(
-            status_code=409,
-            detail=f"La orden de pago ya no está pendiente (estado actual: {pago.estado.value})."
-        )
+        raise HTTPException(status_code=409, detail=f"Este pago ya no está pendiente (estado: {pago.estado.value}).")
 
     # Si es reserva, obtener public_key del propietario receptor
     if pago.tipo == TipoPago.reserva:
@@ -213,14 +210,11 @@ async def cobrar_con_culqi(
 
         # Si es reserva, confirmar reserva automáticamente vía PATCH /confirmar
         if pago.tipo == TipoPago.reserva and pago.reserva_id:
-            try:
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    await client.patch(
-                        f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/confirmar",
-                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
-                    )
-            except Exception as exc:
-                print(f"[PAGOS] ⚠️ Error llamando a confirmar reserva #{pago.reserva_id}: {exc}")
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                try:
+                    await client.patch(f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/confirmar", headers={"X-Internal-Key": INTERNAL_SERVICE_KEY})
+                except Exception as exc:
+                    print(f"[PAGOS] Error confirmando reserva: {exc}")
 
         # Si es suscripción, activar suscripción en usuarios con reintentos
         if pago.tipo == TipoPago.suscripcion and pago.suscripcion_id:
