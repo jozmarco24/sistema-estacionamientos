@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, Float, String, Enum, DateTime, Boolean
 from database import Base, SCHEMA_NAME
 
@@ -32,7 +32,7 @@ class Pago(Base):
     monto = Column(Float, nullable=False)
     metodo_pago = Column(String(50), nullable=False, default="tarjeta")
     estado = Column(Enum(EstadoPago), default=EstadoPago.pendiente, nullable=False)
-    fecha_pago = Column(DateTime, default=datetime.utcnow, nullable=False)
+    fecha_pago = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Culqi Tracking & Auditoría
     culqi_charge_id = Column(String(100), nullable=True, unique=True, index=True)
@@ -47,8 +47,8 @@ class CredencialCulqi(Base):
     public_key_enc = Column(String(500), nullable=True)      # cifrada con Fernet
     secret_key_enc = Column(String(500), nullable=True)      # cifrada con Fernet
     esta_verificada = Column(Boolean, default=False, nullable=True)
-    actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
-    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    actualizado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Columnas previas para retrocompatibilidad
     public_key = Column(String(100), nullable=True)

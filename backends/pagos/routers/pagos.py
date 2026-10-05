@@ -1,6 +1,6 @@
-﻿import os
+import os
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -43,7 +43,7 @@ def crear_pago(
         monto=pago_in.monto,
         metodo_pago=pago_in.metodo_pago or "tarjeta",
         estado=pago_in.estado or EstadoPago.pendiente,
-        fecha_pago=datetime.utcnow()
+        fecha_pago=datetime.now(timezone.utc)
     )
     db.add(nuevo_pago)
     db.commit()
@@ -197,7 +197,7 @@ async def cobrar_con_culqi(
         pago.culqi_charge_id = charge_id
         pago.referencia_externa = charge_id
         pago.estado = EstadoPago.pagado
-        pago.fecha_pago = datetime.utcnow()
+        pago.fecha_pago = datetime.now(timezone.utc)
         db.commit()
         db.refresh(pago)
 

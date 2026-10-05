@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, Enum, DateTime, String
 from database import Base, SCHEMA_NAME
 
@@ -21,5 +21,5 @@ class Reserva(Base):
     fecha_fin = Column(DateTime, nullable=False)
     estado = Column(Enum(EstadoReserva), default=EstadoReserva.pendiente, nullable=False)
     placa_vehiculo = Column(String(20), nullable=False, default="N/A")
-    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     expira_en = Column(DateTime, nullable=True)
