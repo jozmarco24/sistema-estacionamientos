@@ -9,6 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      TZ: America/Lima
     ports:
       - "5432:5432"
     volumes:
@@ -29,6 +30,7 @@ services:
     ports:
       - "8001:8001"
     environment:
+      - TZ=America/Lima
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SCHEMA_NAME=db_usuarios
       - JWT_SECRET=${JWT_SECRET}
@@ -52,6 +54,7 @@ services:
     ports:
       - "8002:8002"
     environment:
+      - TZ=America/Lima
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SCHEMA_NAME=db_estacionamientos
       - JWT_SECRET=${JWT_SECRET}
@@ -72,6 +75,7 @@ services:
     ports:
       - "8003:8003"
     environment:
+      - TZ=America/Lima
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SCHEMA_NAME=db_reservas
       - JWT_SECRET=${JWT_SECRET}
@@ -97,6 +101,7 @@ services:
     ports:
       - "8004:8004"
     environment:
+      - TZ=America/Lima
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SCHEMA_NAME=db_pagos
       - JWT_SECRET=${JWT_SECRET}
@@ -120,6 +125,8 @@ services:
     restart: always
     ports:
       - "8080:80"
+    environment:
+      - TZ=America/Lima
     depends_on:
       - usuarios
       - estacionamientos

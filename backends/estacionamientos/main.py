@@ -13,6 +13,16 @@ with engine.connect() as conn:
 
 Base.metadata.create_all(bind=engine)
 
+# Migración para asegurar valor 'bloqueado' en enum estadoespacio de postgres
+with engine.connect() as conn:
+    conn.execute(text(f"""
+        DO $$ BEGIN
+            ALTER TYPE {SCHEMA_NAME}.estadoespacio ADD VALUE IF NOT EXISTS 'bloqueado';
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$;
+    """))
+    conn.commit()
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(

@@ -1026,29 +1026,20 @@
         async function cargarEstadoCredencialesCobros() {
             try {
                 const res = await fetch('/api/pagos/credenciales/estado', {
+                    method: 'GET',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (res.ok) {
-                    const data = await res.json();
+                if (!res.ok) {
+                    setBadgeCobros('ocupado', '❌ No configurada');
+                    return;
+                }
+                const data = await res.json();
+                if (data.configurada && data.verificada) {
+                    setBadgeCobros('libre', '✅ Verificada');
                     const pkInput = document.getElementById('cobros-public-key');
-                    const skInput = document.getElementById('cobros-secret-key');
-                    
-                    if (data.configurada) {
-                        pkInput.value = data.public_key_mask || '';
-                        skInput.value = '';
-                        skInput.placeholder = '••••••••';
-
-                        if (data.verificada) {
-                            setBadgeCobros('libre', '✅ Verificada');
-                        } else {
-                            setBadgeCobros('reservado', '⚠️ Guardada sin verificar');
-                        }
-                    } else {
-                        pkInput.value = '';
-                        skInput.value = '';
-                        skInput.placeholder = '••••••••';
-                        setBadgeCobros('ocupado', '❌ No configurada');
-                    }
+                    if (pkInput && data.public_key_mask) pkInput.value = data.public_key_mask;
+                } else if (data.configurada && !data.verificada) {
+                    setBadgeCobros('ocupado', '⚠️ Sin verificar');
                 } else {
                     setBadgeCobros('ocupado', '❌ No configurada');
                 }
@@ -1079,10 +1070,13 @@
                 const res = await fetch('/api/pagos/credenciales/', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ public_key: pk, secret_key: sk })
+                    body: JSON.stringify({
+                        public_key: document.getElementById('cobros-public-key').value.trim(),
+                        secret_key: document.getElementById('cobros-secret-key').value.trim()
+                    })
                 });
 
                 const data = await res.json();
@@ -1131,9 +1125,7 @@
             try {
                 const res = await fetch('/api/pagos/credenciales/verificar', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 const data = await res.json();

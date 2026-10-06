@@ -1,5 +1,6 @@
 import httpx
 from datetime import datetime
+import pytz
 from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -55,7 +56,7 @@ def guardar_credenciales(
     sk_enc = cifrar(sk)
 
     cred = db.query(CredencialCulqi).filter(CredencialCulqi.propietario_id == current_user.id).first()
-    ahora = datetime.utcnow()
+    ahora = datetime.now(pytz.timezone("America/Lima"))
 
     if not cred:
         cred = CredencialCulqi(
@@ -137,14 +138,14 @@ async def verificar_credenciales(
     if resp.status_code in [200, 400]:
         cred.esta_verificada = True
         cred.valida = True
-        cred.verificada_en = datetime.utcnow()
-        cred.actualizado_en = datetime.utcnow()
+        cred.verificada_en = datetime.now(pytz.timezone("America/Lima"))
+        cred.actualizado_en = datetime.now(pytz.timezone("America/Lima"))
         db.commit()
         return VerificarCredencialesResponse(estado="verificada")
     elif resp.status_code == 401:
         cred.esta_verificada = False
         cred.valida = False
-        cred.actualizado_en = datetime.utcnow()
+        cred.actualizado_en = datetime.now(pytz.timezone("America/Lima"))
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
