@@ -1,4 +1,5 @@
 import os
+import asyncio
 import httpx
 from datetime import datetime, timezone
 import pytz
@@ -21,8 +22,33 @@ from crypto import encrypt_secret_key, decrypt_secret_key
 
 router = APIRouter(prefix="/pagos", tags=["pagos"])
 
-RESERVAS_SERVICE_URL = os.getenv("RESERVAS_SERVICE_URL", "http://reservas:8003")
-USUARIOS_SERVICE_URL = os.getenv("USUARIOS_SERVICE_URL", "http://usuarios:8001")
+async def confirmar_reserva_con_reintentos(reserva_id: int) -> bool:
+    delays = [2, 4, 8]
+    for attempt, delay in enumerate(delays, start=1):
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.patch(
+                    f"{RESERVAS_SERVICE_URL}/reservas/{reserva_id}/confirmar",
+                    headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+                )
+                if resp.status_code in (200, 204):
+                    print(f"[PAGOS] ✅ Reserva #{reserva_id} confirmada exitosamente en intento {attempt}.")
+                    return True
+                print(f"[PAGOS] ⚠️ Intento {attempt}/3 falló al confirmar reserva #{reserva_id}. Status: {resp.status_code}")
+        except httpx.RequestError as exc:
+            print(f"[PAGOS] ⚠️ Intento {attempt}/3 error de red al confirmar reserva #{reserva_id}: {exc}")
+        
+        if attempt < len(delays):
+            await asyncio.sleep(delay)
+    return False
+
+# 2.1 Listar pagos que requieren revisión manual (Admin)
+@router.get("/pendientes-revision", response_model=List[PagoResponse])
+def listar_pagos_pendientes_revision(
+    db: Session = Depends(get_db),
+    _admin: CurrentUser = Depends(require_admin)
+):
+    return db.query(Pago).filter(Pago.estado == EstadoPago.pagado_sin_confirmar).order_by(Pago.id.desc()).all()
 PLATAFORMA_CULQI_PUBLIC = os.getenv("CULQI_PUBLIC_KEY", "")
 PLATAFORMA_CULQI_SECRET = os.getenv("CULQI_SECRET_KEY", "")
 INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
@@ -52,14 +78,12 @@ def crear_pago(
     db.refresh(nuevo_pago)
     return nuevo_pago
 
-# 1.1 Listar pagos globalmente (Admin o Propietario con filtro)
+# 1.1 Listar pagos globalmente (Admin, Propietario o Conductor con filtro por rol)
 @router.get("/", response_model=List[PagoResponse])
 def listar_pagos(
     db: Session = Depends(get_db),
-    current_user: Optional[CurrentUser] = Depends(get_current_user_optional)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
-    if not current_user:
-        return db.query(Pago).order_by(Pago.id.desc()).all()
     if current_user.rol == "admin":
         return db.query(Pago).order_by(Pago.id.desc()).all()
     elif current_user.rol == "propietario":
@@ -250,18 +274,14 @@ async def cobrar_con_culqi(
         db.commit()
         db.refresh(pago)
 
-        # Confirmar la reserva en el servicio de reservas tras pago exitoso
+        # Confirmar la reserva en el servicio de reservas tras pago exitoso con reintentos
         if pago.tipo == TipoPago.reserva and pago.reserva_id:
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                try:
-                    resp_confirmar = await client.patch(
-                        f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/confirmar",
-                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
-                    )
-                    if resp_confirmar.status_code not in (200, 204):
-                        print(f"[PAGOS] ⚠️ Pago #{pago.id} aprobado pero no se pudo confirmar reserva #{pago.reserva_id}. Status: {resp_confirmar.status_code}")
-                except httpx.RequestError as exc:
-                    print(f"[PAGOS] ⚠️ Error de red al confirmar reserva #{pago.reserva_id}: {str(exc)}")
+            confirmada = await confirmar_reserva_con_reintentos(pago.reserva_id)
+            if not confirmada:
+                print(f"[PAGOS] ⚠️ Reintentos agotados. Marcando pago #{pago.id} como pagado_sin_confirmar.")
+                pago.estado = EstadoPago.pagado_sin_confirmar
+                db.commit()
+                db.refresh(pago)
         elif pago.tipo == TipoPago.suscripcion and pago.suscripcion_id:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 try:

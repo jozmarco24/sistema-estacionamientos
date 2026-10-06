@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Usuario, RolUsuario
 
-SECRET_KEY = os.getenv("JWT_SECRET", "super_secret_jwt_key_estacionamientos_2026")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET no está configurado. El servicio no puede arrancar sin esta variable.")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
 INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "internal_secret_microservice_key_2026")

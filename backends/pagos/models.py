@@ -11,6 +11,7 @@ class TipoPago(str, enum.Enum):
 class EstadoPago(str, enum.Enum):
     pendiente = "pendiente"
     pagado = "pagado"
+    pagado_sin_confirmar = "pagado_sin_confirmar"
     fallido = "fallido"
 
 class Pago(Base):

@@ -1,0 +1,67 @@
+﻿commit 779681b3664d0e9c8941543f7087aeaf490f9456
+Author: CodeMarco18 <kmar98943@gmail.com>
+Date:   Tue Oct 6 13:57:43 2026 -0500
+
+    fix: import os, datetime timezone=True Lima, CORS restringido, fallida en enum reservas
+
+diff --git a/backends/reservas/main.py b/backends/reservas/main.py
+index b6a9f82..3afc949 100644
+--- a/backends/reservas/main.py
++++ b/backends/reservas/main.py
+@@ -1,3 +1,4 @@
++´╗┐import os
+ import asyncio
+ from datetime import datetime
+ from contextlib import asynccontextmanager
+@@ -10,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
+ 
+ from time_utils import utc_now
+ 
+-# Tarea en segundo plano para expiraci├│n autom├ítica de reservas pendientes cada 30 segundos
++# Tarea en segundo plano para expiraci├â┬│n autom├â┬ítica de reservas pendientes cada 30 segundos
+ async def background_expirar_reservas():
+     while True:
+         try:
+@@ -32,17 +33,17 @@ async def background_expirar_reservas():
+         except asyncio.CancelledError:
+             break
+         except Exception as e:
+-            print(f"[RESERVAS BACKGROUND] Error en tarea de expiraci├│n: {e}")
++            print(f"[RESERVAS BACKGROUND] Error en tarea de expiraci├â┬│n: {e}")
+ 
+ @asynccontextmanager
+ async def lifespan(app: FastAPI):
+-    # Inicializaci├│n de esquema y tablas
++    # Inicializaci├â┬│n de esquema y tablas
+     with engine.connect() as conn:
+         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
+         conn.commit()
+     Base.metadata.create_all(bind=engine)
+ 
+-    # Migraci├│n SQL de columnas y enum
++    # Migraci├â┬│n SQL de columnas y enum
+     with engine.connect() as conn:
+         conn.execute(text(f"""
+             ALTER TABLE {SCHEMA_NAME}.reservas ADD COLUMN IF NOT EXISTS creado_en TIMESTAMP DEFAULT NOW();
+@@ -68,14 +69,14 @@ async def lifespan(app: FastAPI):
+ 
+ app = FastAPI(
+     title="Servicio de Reservas",
+-    description="Microservicio independiente para gesti├│n de reservas, exclusi├│n mutua y expiraci├│n autom├ítica.",
++    description="Microservicio independiente para gesti├â┬│n de reservas, exclusi├â┬│n mutua y expiraci├â┬│n autom├â┬ítica.",
+     version="1.0.0",
+     lifespan=lifespan
+ )
+ 
+ app.add_middleware(
+     CORSMiddleware,
+-    allow_origins=["*"],
++    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:8080")],
+     allow_credentials=True,
+     allow_methods=["*"],
+     allow_headers=["*"],
+@@ -86,3 +87,4 @@ app.include_router(reservas_router)
+ @app.get("/")
+ def health_check():
+     return {"status": "ok", "service": "reservas"}
++
