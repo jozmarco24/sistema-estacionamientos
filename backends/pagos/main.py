@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from fastapi import FastAPI
 from database import engine, Base, SCHEMA_NAME
@@ -7,7 +7,7 @@ from routers.pagos import router as pagos_router
 from routers.credenciales import router as credenciales_router
 from fastapi.middleware.cors import CORSMiddleware
 
-# Validación estricta de arranque: Solo permitir modo prueba Culqi
+# ValidaciÃ³n estricta de arranque: Solo permitir modo prueba Culqi
 CULQI_SECRET = os.getenv("CULQI_SECRET_KEY", "")
 if not CULQI_SECRET.startswith("sk_test_"):
     print("FATAL: CULQI_SECRET_KEY debe iniciar obligatoriamente con 'sk_test_'. Modo live no permitido.")
@@ -20,7 +20,7 @@ with engine.connect() as conn:
 
 Base.metadata.create_all(bind=engine)
 
-# Script SQL de migración rápida para tablas existentes en PostgreSQL
+# Script SQL de migraciÃ³n rÃ¡pida para tablas existentes en PostgreSQL
 with engine.connect() as conn:
     conn.execute(text(f"""
         ALTER TABLE {SCHEMA_NAME}.pagos ADD COLUMN IF NOT EXISTS culqi_charge_id VARCHAR(100);
@@ -44,7 +44,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:8080")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,3 +56,4 @@ app.include_router(credenciales_router)
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": "pagos", "modo": "prueba_culqi"}
+

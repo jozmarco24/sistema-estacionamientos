@@ -1,16 +1,16 @@
+﻿import os
 from fastapi import FastAPI
 from database import engine, Base, SCHEMA_NAME
 from sqlalchemy import text
 from routers.usuarios import router as usuarios_router
+from fastapi.middleware.cors import CORSMiddleware
 
-# Autocrea el esquema y las tablas en el esquema correspondiente
 with engine.connect() as conn:
     conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
     conn.commit()
 
 Base.metadata.create_all(bind=engine)
 
-# Semilla: Administrador por defecto y Planes SaaS
 from database import SessionLocal
 from models import Usuario, RolUsuario, Plan
 from auth import hash_password
@@ -32,7 +32,7 @@ try:
     planes_count = db.query(Plan).count()
     if planes_count == 0:
         planes_iniciales = [
-            Plan(nombre="Básico", precio=49.00, max_sedes=1, max_operadores=2, activo=True),
+            Plan(nombre="Basico", precio=49.00, max_sedes=1, max_operadores=2, activo=True),
             Plan(nombre="Pro", precio=99.00, max_sedes=5, max_operadores=10, activo=True),
             Plan(nombre="Enterprise", precio=199.00, max_sedes=20, max_operadores=50, activo=True)
         ]
@@ -43,17 +43,15 @@ except Exception as e:
 finally:
     db.close()
 
-from fastapi.middleware.cors import CORSMiddleware
-
 app = FastAPI(
     title="Servicio de Usuarios",
-    description="Microservicio independiente para gestión de usuarios, login JWT y roles.",
+    description="Microservicio independiente para gestion de usuarios, login JWT y roles.",
     version="1.0.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:8080")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
