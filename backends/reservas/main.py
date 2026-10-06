@@ -1,3 +1,4 @@
+﻿import os
 import asyncio
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -10,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from time_utils import utc_now
 
-# Tarea en segundo plano para expiración automática de reservas pendientes cada 30 segundos
+# Tarea en segundo plano para expiraciÃ³n automÃ¡tica de reservas pendientes cada 30 segundos
 async def background_expirar_reservas():
     while True:
         try:
@@ -32,17 +33,17 @@ async def background_expirar_reservas():
         except asyncio.CancelledError:
             break
         except Exception as e:
-            print(f"[RESERVAS BACKGROUND] Error en tarea de expiración: {e}")
+            print(f"[RESERVAS BACKGROUND] Error en tarea de expiraciÃ³n: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Inicialización de esquema y tablas
+    # InicializaciÃ³n de esquema y tablas
     with engine.connect() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
         conn.commit()
     Base.metadata.create_all(bind=engine)
 
-    # Migración SQL de columnas y enum
+    # MigraciÃ³n SQL de columnas y enum
     with engine.connect() as conn:
         conn.execute(text(f"""
             ALTER TABLE {SCHEMA_NAME}.reservas ADD COLUMN IF NOT EXISTS creado_en TIMESTAMP DEFAULT NOW();
@@ -68,14 +69,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Servicio de Reservas",
-    description="Microservicio independiente para gestión de reservas, exclusión mutua y expiración automática.",
+    description="Microservicio independiente para gestiÃ³n de reservas, exclusiÃ³n mutua y expiraciÃ³n automÃ¡tica.",
     version="1.0.0",
     lifespan=lifespan
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:8080")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,3 +87,4 @@ app.include_router(reservas_router)
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": "reservas"}
+

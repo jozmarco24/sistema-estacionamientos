@@ -1,3 +1,4 @@
+﻿import os
 
 from fastapi import FastAPI
 from database import engine, Base, SCHEMA_NAME
@@ -13,7 +14,7 @@ with engine.connect() as conn:
 
 Base.metadata.create_all(bind=engine)
 
-# Migración para asegurar valor 'bloqueado' en enum estadoespacio de postgres
+# MigraciÃ³n para asegurar valor 'bloqueado' en enum estadoespacio de postgres
 with engine.connect() as conn:
     conn.execute(text(f"""
         DO $$ BEGIN
@@ -27,13 +28,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Servicio de Estacionamientos",
-    description="Microservicio independiente para gestión de sedes, espacios y disponibilidad.",
+    description="Microservicio independiente para gestiÃ³n de sedes, espacios y disponibilidad.",
     version="1.0.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:8080")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,3 +47,4 @@ app.include_router(incidencias_router)
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": "estacionamientos"}
+

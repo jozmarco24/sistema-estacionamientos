@@ -1,19 +1,15 @@
-import enum
-from datetime import datetime
-import pytz
+﻿import enum
 from sqlalchemy import Column, Integer, Enum, DateTime, String
+from sqlalchemy.sql import func
 from database import Base, SCHEMA_NAME
-
-def lima_now():
-    return datetime.now(pytz.timezone("America/Lima"))
 
 class EstadoReserva(str, enum.Enum):
     pendiente = "pendiente"
     confirmada = "confirmada"
     en_curso = "en_curso"
     cancelada = "cancelada"
-    fallida = "fallida"
     finalizada = "finalizada"
+    fallida = "fallida"
 
 class Reserva(Base):
     __tablename__ = "reservas"
@@ -26,5 +22,5 @@ class Reserva(Base):
     fecha_fin = Column(DateTime(timezone=True), nullable=False)
     estado = Column(Enum(EstadoReserva), default=EstadoReserva.pendiente, nullable=False)
     placa_vehiculo = Column(String(20), nullable=False, default="N/A")
-    creado_en = Column(DateTime(timezone=True), default=lima_now, nullable=False)
+    creado_en = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     expira_en = Column(DateTime(timezone=True), nullable=True)
