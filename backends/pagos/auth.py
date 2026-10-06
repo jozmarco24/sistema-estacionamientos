@@ -5,7 +5,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-SECRET_KEY = os.getenv("JWT_SECRET", "super_secret_jwt_key_estacionamientos_2026")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET no está configurado. El servicio no puede arrancar sin esta variable.")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
 

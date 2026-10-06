@@ -34,6 +34,11 @@ async def lifespan(app: FastAPI):
             ALTER TABLE {SCHEMA_NAME}.credenciales_culqi ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMPTZ DEFAULT NOW();
             ALTER TABLE {SCHEMA_NAME}.credenciales_culqi ALTER COLUMN public_key DROP NOT NULL;
             ALTER TABLE {SCHEMA_NAME}.credenciales_culqi ALTER COLUMN secret_key_cifrada DROP NOT NULL;
+
+            DO $$ BEGIN
+                ALTER TYPE {SCHEMA_NAME}.estadopago ADD VALUE IF NOT EXISTS 'pagado_sin_confirmar';
+            EXCEPTION WHEN duplicate_object THEN null;
+            END $$;
         """))
         conn.commit()
     yield
@@ -45,12 +50,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:8080")],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Internal-Key"],
 )
 
 app.include_router(pagos_router)

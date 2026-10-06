@@ -5,9 +5,11 @@ import time
 
 BASE_USUARIOS = "http://localhost:8001/usuarios"
 BASE_ESTACIONAMIENTOS = "http://localhost:8002"
+import os
+
 BASE_RESERVAS = "http://localhost:8003/reservas"
 BASE_PAGOS = "http://localhost:8004/pagos"
-INTERNAL_KEY = "wmMzRYndAyoDBzm3xz7g_eWJp0fMyeolM1rgrllSP2s"
+INTERNAL_KEY = os.getenv("INTERNAL_SERVICE_KEY", "93b44a5e7bc28ceee2c12f37354b3b87b3995447d4934b659fbe03b3d67a2977")
 
 @pytest.fixture(scope="session")
 def client():
