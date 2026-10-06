@@ -5,6 +5,7 @@ from database import Base, SCHEMA_NAME
 
 class EstadoEspacio(str, enum.Enum):
     libre = "libre"
+    bloqueado = "bloqueado"
     ocupado = "ocupado"
     reservado = "reservado"
 

@@ -97,7 +97,7 @@ def actualizar_estado(espacio_id: int, payload: ActualizarEstadoEspacio, db: Ses
 
 @router.put("/{espacio_id}/reservar_atomico", response_model=EspacioResponse)
 def reservar_espacio_atomico(espacio_id: int, db: Session = Depends(get_db), _internal: bool = Depends(verify_internal_key)):
-    # Consumido internamente por el microservicio de reservas
+    # Consumido internamente por el microservicio de reservas: soft-lock / bloqueo temporal
     espacio = db.query(Espacio).filter(Espacio.id == espacio_id).with_for_update().first()
     if not espacio:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Espacio no encontrado")
@@ -105,17 +105,41 @@ def reservar_espacio_atomico(espacio_id: int, db: Session = Depends(get_db), _in
     if espacio.estado != EstadoEspacio.libre:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"El espacio {espacio.numero} no está libre (estado actual: {espacio.estado.value})"
+            detail=f"El espacio {espacio.numero} no está disponible (estado actual: {espacio.estado.value})"
         )
+    
+    espacio.estado = EstadoEspacio.bloqueado
+    db.commit()
+    db.refresh(espacio)
+    return espacio
+
+@router.put("/{espacio_id}/reservar", response_model=EspacioResponse)
+def marcar_espacio_reservado(espacio_id: int, db: Session = Depends(get_db), _internal: bool = Depends(verify_internal_key)):
+    # Llamado tras pago exitoso para confirmar la reserva del espacio
+    espacio = db.query(Espacio).filter(Espacio.id == espacio_id).with_for_update().first()
+    if not espacio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Espacio no encontrado")
     
     espacio.estado = EstadoEspacio.reservado
     db.commit()
     db.refresh(espacio)
     return espacio
 
+@router.put("/{espacio_id}/ocupar", response_model=EspacioResponse)
+def marcar_espacio_ocupado(espacio_id: int, db: Session = Depends(get_db), _internal: bool = Depends(verify_internal_key)):
+    # Entrada de vehículo al estacionamiento
+    espacio = db.query(Espacio).filter(Espacio.id == espacio_id).with_for_update().first()
+    if not espacio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Espacio no encontrado")
+    
+    espacio.estado = EstadoEspacio.ocupado
+    db.commit()
+    db.refresh(espacio)
+    return espacio
+
 @router.put("/{espacio_id}/liberar", response_model=EspacioResponse)
 def liberar_espacio(espacio_id: int, db: Session = Depends(get_db), _internal: bool = Depends(verify_internal_key)):
-    # Consumido internamente por reservas cuando cancela, expira o hay rollback
+    # Consumido internamente cuando el pago falla, se cancela o expira la reserva
     espacio = db.query(Espacio).filter(Espacio.id == espacio_id).with_for_update().first()
     if not espacio:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Espacio no encontrado")

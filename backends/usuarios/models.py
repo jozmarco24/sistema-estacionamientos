@@ -1,7 +1,11 @@
 import enum
-from datetime import datetime, timezone
+from datetime import datetime
+import pytz
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Boolean, Numeric
 from database import Base, SCHEMA_NAME
+
+def lima_now():
+    return datetime.now(pytz.timezone("America/Lima"))
 
 class RolUsuario(str, enum.Enum):
     conductor = "conductor"
@@ -18,7 +22,7 @@ class Usuario(Base):
     email = Column(String(150), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     rol = Column(Enum(RolUsuario), default=RolUsuario.conductor, nullable=False)
-    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    creado_en = Column(DateTime(timezone=True), default=lima_now, nullable=False)
     activo = Column(Boolean, default=True, nullable=False)
     propietario_id = Column(Integer, nullable=True, index=True)
     sede_id = Column(Integer, nullable=True, index=True)
@@ -59,8 +63,8 @@ class Suscripcion(Base):
     propietario_id = Column(Integer, nullable=False, index=True)
     plan_id = Column(Integer, nullable=False)
     estado = Column(String(20), default="activa")
-    fecha_inicio = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    fecha_vencimiento = Column(DateTime, nullable=False)
+    fecha_inicio = Column(DateTime(timezone=True), default=lima_now)
+    fecha_vencimiento = Column(DateTime(timezone=True), nullable=False)
 
 # Alias de compatibilidad para Membresia
 Membresia = Suscripcion

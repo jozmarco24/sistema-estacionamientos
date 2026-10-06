@@ -2230,7 +2230,7 @@
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><strong>#TX-${p.id}</strong></td>
-                        <td><span style="color:var(--text-muted);">Reserva</span> <strong>#${p.reserva_id}</strong></td>
+                        <td><span style="color:var(--text-muted);">${p.suscripcion_id ? "Suscripción" : "Reserva"}</span> <strong>#${p.suscripcion_id || p.reserva_id || "-"}</strong></td>
                         <td><span style="color:#10b981; font-weight:700;">S/. ${montoNum.toFixed(2)}</span></td>
                         <td>
                             <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; text-transform:capitalize;">

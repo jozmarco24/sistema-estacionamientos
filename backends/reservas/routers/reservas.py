@@ -319,14 +319,15 @@ async def actualizar_estado_reserva(
     estado_actual = reserva.estado.value
 
     # Máquina de Estados Validados:
-    # pendiente -> confirmada | cancelada
+    # pendiente -> confirmada | cancelada | fallida
     # confirmada -> en_curso | cancelada
     # en_curso -> finalizada
     transiciones_validas = {
-        "pendiente": ["confirmada", "cancelada"],
+        "pendiente": ["confirmada", "cancelada", "fallida"],
         "confirmada": ["en_curso", "cancelada"],
         "en_curso": ["finalizada"],
         "cancelada": [],
+        "fallida": [],
         "finalizada": []
     }
 
@@ -340,8 +341,8 @@ async def actualizar_estado_reserva(
     db.commit()
     db.refresh(reserva)
 
-    # Si pasa a cancelada o finalizada, liberar espacio
-    if nuevo_estado in ["cancelada", "finalizada"]:
+    # Si pasa a cancelada, fallida o finalizada, liberar espacio
+    if nuevo_estado in ["cancelada", "fallida", "finalizada"]:
         await liberar_espacio_remoto(reserva.espacio_id)
 
     return reserva
@@ -386,7 +387,7 @@ async def expirar_reserva_cliente(
     return {"mensaje": f"La reserva ya no se encuentra pendiente (estado actual: {reserva.estado.value})"}
 
 # ─────────────────────────────────────────────
-# NUEVO: Confirmar reserva tras pago exitoso (llamada interna desde pagos-service)
+# Confirmar reserva tras pago exitoso (llamada interna desde pagos-service o webhook)
 # ─────────────────────────────────────────────
 @router.patch("/{reserva_id}/confirmar")
 async def confirmar_reserva_tras_pago(
@@ -413,14 +414,40 @@ async def confirmar_reserva_tras_pago(
     db.commit()
     db.refresh(reserva)
 
-    # Notificar a estacionamientos que el espacio pasa de "bloqueado" a "ocupado"
+    # Notificar a estacionamientos que el espacio pasa de "bloqueado" a "reservado"
     async with httpx.AsyncClient(timeout=6.0) as client:
         try:
             await client.put(
-                f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{reserva.espacio_id}/ocupar",
+                f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{reserva.espacio_id}/reservar",
                 headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
             )
         except httpx.RequestError as exc:
-            print(f"[RESERVAS] ⚠️ Reserva #{reserva_id} confirmada pero error al ocupar espacio: {str(exc)}")
+            print(f"[RESERVAS] ⚠️ Reserva #{reserva_id} confirmada pero error al marcar espacio como reservado: {str(exc)}")
 
     return {"ok": True, "estado": "confirmada", "reserva_id": reserva_id}
+
+# ─────────────────────────────────────────────
+# Marcar reserva como fallida tras pago fallido o cancelado (llamada interna desde pagos-service o webhook)
+# ─────────────────────────────────────────────
+@router.patch("/{reserva_id}/fallar")
+async def fallar_reserva_tras_pago(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    _internal: bool = Depends(verify_internal_key)
+):
+    reserva = db.query(Reserva).filter(Reserva.id == reserva_id).first()
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada.")
+
+    if reserva.estado == EstadoReserva.fallida:
+        return {"ok": True, "estado": "fallida", "mensaje": "La reserva ya estaba marcada como fallida."}
+
+    reserva.estado = EstadoReserva.fallida
+    reserva.expira_en = None
+    db.commit()
+    db.refresh(reserva)
+
+    # Liberar el cajón de vuelta a "libre" (DISPONIBLE)
+    await liberar_espacio_remoto(reserva.espacio_id)
+
+    return {"ok": True, "estado": "fallida", "reserva_id": reserva_id}

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from datetime import datetime, timedelta, timezone
+import pytz
 from database import get_db
 from models import Usuario, RolUsuario, Vehiculo, Plan, Suscripcion, Membresia
 from schemas import (
@@ -342,7 +343,7 @@ async def comprar_suscripcion(plan_id: int, db: Session = Depends(get_db), curre
         propietario_id=current_user.id,
         plan_id=plan.id,
         estado="pendiente", # Se activa automáticamente tras cobrar con Culqi
-        fecha_vencimiento=datetime.utcnow() + timedelta(days=30)
+        fecha_vencimiento=datetime.now(pytz.timezone("America/Lima")) + timedelta(days=30)
     )
     db.add(nueva_sus)
     db.commit()
@@ -414,7 +415,7 @@ def actualizar_estado_suscripcion(
     # Si renueva, extender 30 días adicionales
     if payload.get("extender_dias"):
         dias = int(payload.get("extender_dias"))
-        sus.fecha_vencimiento = datetime.utcnow() + timedelta(days=dias)
+        sus.fecha_vencimiento = datetime.now(pytz.timezone("America/Lima")) + timedelta(days=dias)
         sus.estado = "activa"
 
     db.commit()
@@ -479,7 +480,7 @@ def cambiar_plan_membresia(
         s.estado = "cancelada"
 
     # Crear la nueva membresía ACTIVA con vencimiento hoy + 30 días
-    ahora = datetime.now(timezone.utc)
+    ahora = datetime.now(pytz.timezone("America/Lima"))
     nueva_membresia = Suscripcion(
         propietario_id=payload.propietario_id,
         plan_id=nuevo_plan.id,

@@ -1,6 +1,7 @@
 import os
 import httpx
 from datetime import datetime, timezone
+import pytz
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -21,6 +22,7 @@ from crypto import encrypt_secret_key, decrypt_secret_key
 router = APIRouter(prefix="/pagos", tags=["pagos"])
 
 RESERVAS_SERVICE_URL = os.getenv("RESERVAS_SERVICE_URL", "http://reservas:8003")
+USUARIOS_SERVICE_URL = os.getenv("USUARIOS_SERVICE_URL", "http://usuarios:8001")
 PLATAFORMA_CULQI_PUBLIC = os.getenv("CULQI_PUBLIC_KEY", "")
 PLATAFORMA_CULQI_SECRET = os.getenv("CULQI_SECRET_KEY", "")
 INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
@@ -43,7 +45,7 @@ def crear_pago(
         monto=pago_in.monto,
         metodo_pago=pago_in.metodo_pago or "tarjeta",
         estado=pago_in.estado or EstadoPago.pendiente,
-        fecha_pago=datetime.now(timezone.utc)
+        fecha_pago=datetime.now(pytz.timezone("America/Lima"))
     )
     db.add(nuevo_pago)
     db.commit()
@@ -73,6 +75,30 @@ def listar_pagos_propietario(
 ):
     return db.query(Pago).filter(Pago.receptor_id == propietario_id).order_by(Pago.id.desc()).all()
 
+# 1.3 Obtener pagos por reserva
+@router.get("/reserva/{reserva_id}", response_model=List[PagoResponse])
+def obtener_pagos_por_reserva(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional)
+):
+    query = db.query(Pago).filter(Pago.reserva_id == reserva_id)
+    if current_user and current_user.rol not in ["admin", "propietario", "operador"]:
+        query = query.filter(Pago.pagador_id == current_user.id)
+    return query.order_by(Pago.id.desc()).all()
+
+# 1.4 Obtener pagos por suscripcion
+@router.get("/suscripcion/{suscripcion_id}", response_model=List[PagoResponse])
+def obtener_pagos_por_suscripcion(
+    suscripcion_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional)
+):
+    query = db.query(Pago).filter(Pago.suscripcion_id == suscripcion_id)
+    if current_user and current_user.rol not in ["admin", "propietario"]:
+        query = query.filter(Pago.pagador_id == current_user.id)
+    return query.order_by(Pago.id.desc()).all()
+
 # 2. Configuración pública para el Checkout Culqi en frontend
 @router.get("/config-publica", response_model=ConfigPublicaResponse)
 def obtener_config_publica(
@@ -87,7 +113,7 @@ def obtener_config_publica(
     if current_user.rol != "admin" and pago.pagador_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este pago")
 
-    # ✅ NUEVO: Validar que el pago siga pendiente antes de abrir checkout
+    # ✅ Validar que el pago siga pendiente antes de abrir checkout
     if pago.estado != EstadoPago.pendiente:
         raise HTTPException(
             status_code=409,
@@ -220,11 +246,11 @@ async def cobrar_con_culqi(
         pago.culqi_charge_id = charge_id
         pago.referencia_externa = charge_id
         pago.estado = EstadoPago.pagado
-        pago.fecha_pago = datetime.now(timezone.utc)
+        pago.fecha_pago = datetime.now(pytz.timezone("America/Lima"))
         db.commit()
         db.refresh(pago)
 
-        # ✅ NUEVO: Confirmar la reserva en el servicio de reservas tras pago exitoso
+        # Confirmar la reserva en el servicio de reservas tras pago exitoso
         if pago.tipo == TipoPago.reserva and pago.reserva_id:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 try:
@@ -236,14 +262,101 @@ async def cobrar_con_culqi(
                         print(f"[PAGOS] ⚠️ Pago #{pago.id} aprobado pero no se pudo confirmar reserva #{pago.reserva_id}. Status: {resp_confirmar.status_code}")
                 except httpx.RequestError as exc:
                     print(f"[PAGOS] ⚠️ Error de red al confirmar reserva #{pago.reserva_id}: {str(exc)}")
+        elif pago.tipo == TipoPago.suscripcion and pago.suscripcion_id:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                try:
+                    resp_activar = await client.put(
+                        f"{USUARIOS_SERVICE_URL}/usuarios/suscripciones/{pago.suscripcion_id}/estado",
+                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY},
+                        json={"estado": "activa"}
+                    )
+                    if resp_activar.status_code == 200:
+                        print(f"[PAGOS] ✅ Suscripción #{pago.suscripcion_id} activada correctamente.")
+                    else:
+                        print(f"[PAGOS] ⚠️ Pago #{pago.id} aprobado pero no se pudo activar suscripción #{pago.suscripcion_id}. Status: {resp_activar.status_code}")
+                except httpx.RequestError as exc:
+                    print(f"[PAGOS] ⚠️ Error de red al activar suscripción #{pago.suscripcion_id}: {str(exc)}")
     else:
         pago.estado = EstadoPago.fallido
         db.commit()
         db.refresh(pago)
+
+        # Notificar al servicio de reservas que el pago falló (libera el espacio y marca reserva fallida)
+        if pago.tipo == TipoPago.reserva and pago.reserva_id:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                try:
+                    await client.patch(
+                        f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/fallar",
+                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+                    )
+                except Exception as exc:
+                    print(f"[PAGOS] ⚠️ Error notificando fallo de reserva #{pago.reserva_id}: {exc}")
+
         error_msg = culqi_data.get("user_message") or culqi_data.get("merchant_message") or "Error al procesar el pago."
         raise HTTPException(status_code=402, detail=error_msg)
 
     return pago
+
+# 3.1 Webhook oficial de Culqi (Eventos asíncronos charge.creation.succeeded / charge.creation.failed)
+@router.post("/webhook/culqi")
+async def webhook_culqi(payload: dict, db: Session = Depends(get_db)):
+    event_type = payload.get("type") or payload.get("event")
+    data = payload.get("data") or {}
+    charge_id = data.get("id")
+
+    if not charge_id:
+        return {"status": "ignored", "detail": "Sin charge_id"}
+
+    pago = db.query(Pago).filter((Pago.culqi_charge_id == charge_id) | (Pago.referencia_externa == charge_id)).first()
+    if not pago:
+        return {"status": "ignored", "detail": "Pago no encontrado"}
+
+    if event_type in ["charge.creation.succeeded", "order.status.paid"]:
+        pago.estado = EstadoPago.pagado
+        pago.fecha_pago = datetime.now(pytz.timezone("America/Lima"))
+        db.commit()
+        db.refresh(pago)
+
+        if pago.tipo == TipoPago.reserva and pago.reserva_id:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                try:
+                    await client.patch(
+                        f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/confirmar",
+                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+                    )
+                except Exception as e:
+                    print(f"[WEBHOOK] Error confirmando reserva: {e}")
+        elif pago.tipo == TipoPago.suscripcion and pago.suscripcion_id:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                try:
+                    await client.put(
+                        f"{USUARIOS_SERVICE_URL}/usuarios/suscripciones/{pago.suscripcion_id}/estado",
+                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY},
+                        json={"estado": "activa"}
+                    )
+                except Exception as e:
+                    print(f"[WEBHOOK] Error activando suscripcion: {e}")
+
+        return {"status": "ok", "action": "pago_confirmado"}
+
+    elif event_type in ["charge.creation.failed", "order.status.expired"]:
+        pago.estado = EstadoPago.fallido
+        db.commit()
+        db.refresh(pago)
+
+        if pago.tipo == TipoPago.reserva and pago.reserva_id:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                try:
+                    await client.patch(
+                        f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/fallar",
+                        headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+                    )
+                except Exception as e:
+                    print(f"[WEBHOOK] Error marcando reserva fallida: {e}")
+
+        return {"status": "ok", "action": "pago_fallido"}
+
+    return {"status": "unhandled_event"}
 
 
 # ─────────────────────────────────────────────

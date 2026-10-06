@@ -51,6 +51,10 @@ async def lifespan(app: FastAPI):
                 ALTER TYPE {SCHEMA_NAME}.estadoreserva ADD VALUE IF NOT EXISTS 'en_curso';
             EXCEPTION WHEN duplicate_object THEN null;
             END $$;
+            DO $$ BEGIN
+                ALTER TYPE {SCHEMA_NAME}.estadoreserva ADD VALUE IF NOT EXISTS 'fallida';
+            EXCEPTION WHEN duplicate_object THEN null;
+            END $$;
         """))
         conn.commit()
 
