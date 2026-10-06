@@ -1,35 +1,37 @@
-﻿import os
-
+# backends/estacionamientos/main.py
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from database import engine, Base, SCHEMA_NAME
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from database import engine, Base, SCHEMA_NAME
 from routers.sedes import router as sedes_router
 from routers.espacios import router as espacios_router
 from routers.incidencias import router as incidencias_router
 
-# Autocrea el esquema y las tablas en el esquema correspondiente
-with engine.connect() as conn:
-    conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
-    conn.commit()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    with engine.connect() as conn:
+        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"))
+        conn.commit()
+    Base.metadata.create_all(bind=engine)
 
-Base.metadata.create_all(bind=engine)
-
-# MigraciÃ³n para asegurar valor 'bloqueado' en enum estadoespacio de postgres
-with engine.connect() as conn:
-    conn.execute(text(f"""
-        DO $$ BEGIN
-            ALTER TYPE {SCHEMA_NAME}.estadoespacio ADD VALUE IF NOT EXISTS 'bloqueado';
-        EXCEPTION WHEN duplicate_object THEN null;
-        END $$;
-    """))
-    conn.commit()
-
-from fastapi.middleware.cors import CORSMiddleware
+    # Migracion para asegurar valor 'bloqueado' en enum estadoespacio
+    with engine.connect() as conn:
+        conn.execute(text(f"""
+            DO $$ BEGIN
+                ALTER TYPE {SCHEMA_NAME}.estadoespacio ADD VALUE IF NOT EXISTS 'bloqueado';
+            EXCEPTION WHEN duplicate_object THEN null;
+            END $$;
+        """))
+        conn.commit()
+    yield
 
 app = FastAPI(
     title="Servicio de Estacionamientos",
-    description="Microservicio independiente para gestiÃ³n de sedes, espacios y disponibilidad.",
-    version="1.0.0"
+    description="Microservicio para gestion de sedes, espacios y disponibilidad.",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -47,4 +49,3 @@ app.include_router(incidencias_router)
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": "estacionamientos"}
-

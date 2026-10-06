@@ -1,4 +1,5 @@
-﻿import enum
+# backends/pagos/models.py
+import enum
 from sqlalchemy import Column, Integer, Float, String, Enum, DateTime, Boolean
 from sqlalchemy.sql import func
 from database import Base, SCHEMA_NAME
@@ -19,10 +20,12 @@ class Pago(Base):
     id = Column(Integer, primary_key=True, index=True)
     tipo = Column(Enum(TipoPago), default=TipoPago.reserva, nullable=False)
 
+    # Origen
     reserva_id = Column(Integer, nullable=True, index=True)
     suscripcion_id = Column(Integer, nullable=True, index=True)
     sede_id = Column(Integer, nullable=True, index=True)
 
+    # Actores
     pagador_id = Column(Integer, nullable=False, index=True)
     receptor_id = Column(Integer, nullable=True, index=True)
     cuenta_destino = Column(String(150), nullable=True)
@@ -32,6 +35,7 @@ class Pago(Base):
     estado = Column(Enum(EstadoPago), default=EstadoPago.pendiente, nullable=False)
     fecha_pago = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Culqi Tracking & Auditoria
     culqi_charge_id = Column(String(100), nullable=True, unique=True, index=True)
     referencia_externa = Column(String(100), nullable=True, index=True)
 
@@ -41,13 +45,13 @@ class CredencialCulqi(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     propietario_id = Column(Integer, nullable=False, unique=True, index=True)
-
     public_key_enc = Column(String(500), nullable=True)
     secret_key_enc = Column(String(500), nullable=True)
     esta_verificada = Column(Boolean, default=False, nullable=True)
     actualizado_en = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Columnas previas para retrocompatibilidad
     public_key = Column(String(100), nullable=True)
     secret_key_cifrada = Column(String(500), nullable=True)
     valida = Column(Boolean, default=False, nullable=True)
