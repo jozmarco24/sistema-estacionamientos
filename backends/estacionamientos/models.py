@@ -1,5 +1,6 @@
 import enum
-from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey, Boolean, DateTime
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base, SCHEMA_NAME
 
@@ -61,7 +62,7 @@ class Incidencia(Base):
     sede_id = Column(Integer, ForeignKey(f"{SCHEMA_NAME}.sedes.id"), nullable=False)
     operador_id = Column(Integer, nullable=False) # Guardamos el ID del operador que reporta
     descripcion = Column(String(500), nullable=False)
-    fecha_reporte = Column(String, nullable=False) # Almacenamos ISO String temporalmente para simplificar sin tz
+    fecha_reporte = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     estado = Column(Enum(EstadoIncidencia), default=EstadoIncidencia.abierta, nullable=False)
 
     sede = relationship("Sede", back_populates="incidencias")
