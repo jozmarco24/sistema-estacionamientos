@@ -18,22 +18,31 @@ async def background_expirar_reservas():
             await asyncio.sleep(30)
             db = SessionLocal()
             ahora = utc_now()
-            vencidas = db.query(Reserva).filter(
+            
+            # Obtener espacios a liberar de las reservas pendientes vencidas
+            vencidas_info = db.query(Reserva.id, Reserva.espacio_id).filter(
                 Reserva.estado == EstadoReserva.pendiente,
                 Reserva.expira_en != None,
                 Reserva.expira_en < ahora
             ).all()
 
-            for r in vencidas:
-                print(f"[RESERVAS BACKGROUND] Expirando reserva #{r.id} por tiempo agotado...")
-                r.estado = EstadoReserva.cancelada
+            if vencidas_info:
+                # UPDATE atómico de una sola instrucción para evitar carreras con /confirmar
+                db.query(Reserva).filter(
+                    Reserva.estado == EstadoReserva.pendiente,
+                    Reserva.expira_en != None,
+                    Reserva.expira_en < ahora
+                ).update({"estado": EstadoReserva.cancelada}, synchronize_session=False)
                 db.commit()
-                await liberar_espacio_remoto(r.espacio_id)
+
+                for res_id, esp_id in vencidas_info:
+                    print(f"[RESERVAS BACKGROUND] Expirando reserva #{res_id} por tiempo agotado...")
+                    await liberar_espacio_remoto(esp_id)
             db.close()
         except asyncio.CancelledError:
             break
         except Exception as e:
-            print(f"[RESERVAS BACKGROUND] Error en tarea de expiraciÃ³n: {e}")
+            print(f"[RESERVAS BACKGROUND] Error en tarea de expiración: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

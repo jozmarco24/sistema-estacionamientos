@@ -327,7 +327,7 @@ async def actualizar_estado_reserva(
         "confirmada": ["en_curso", "cancelada"],
         "en_curso": ["finalizada"],
         "cancelada": [],
-        "fallida": [],
+        "fallida": ["confirmada"],
         "finalizada": []
     }
 
@@ -387,6 +387,50 @@ async def expirar_reserva_cliente(
     return {"mensaje": f"La reserva ya no se encuentra pendiente (estado actual: {reserva.estado.value})"}
 
 # ─────────────────────────────────────────────
+# Extender plazo de expiración (llamada interna desde pagos antes de cobrar con Culqi)
+# ─────────────────────────────────────────────
+@router.patch("/{reserva_id}/extender-expiracion")
+async def extender_expiracion(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    _internal: bool = Depends(verify_internal_key)
+):
+    reserva = db.query(Reserva).filter(Reserva.id == reserva_id).first()
+    if reserva and reserva.estado == EstadoReserva.pendiente:
+        reserva.expira_en = utc_now() + timedelta(minutes=10)
+        db.commit()
+    return {"ok": True}
+
+# ─────────────────────────────────────────────
+# Función auxiliar para verificar si el espacio sigue libre y no se solapa
+# ─────────────────────────────────────────────
+async def verificar_espacio_disponible(espacio_id: int, inicio: datetime, fin: datetime, db: Session, reserva_id_actual: int) -> bool:
+    # 1. Verificar estado del espacio en el servicio de estacionamientos
+    async with httpx.AsyncClient(timeout=6.0) as client:
+        try:
+            resp_disp = await client.get(f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{espacio_id}/disponibilidad")
+            if resp_disp.status_code != 200:
+                return False
+            data = resp_disp.json()
+            # Si está ocupado o reservado por otro proceso directo, no está libre
+            if data.get("estado") not in ["libre", "bloqueado"]:
+                return False
+        except Exception as e:
+            print(f"[RESERVAS] Error consultando disponibilidad remota: {e}")
+            return False
+
+    # 2. Verificar que no exista otra reserva activa confirmada en ese rango
+    solapada = db.query(Reserva).filter(
+        Reserva.id != reserva_id_actual,
+        Reserva.espacio_id == espacio_id,
+        Reserva.estado.in_([EstadoReserva.confirmada, EstadoReserva.en_curso]),
+        Reserva.fecha_inicio < fin,
+        Reserva.fecha_fin > inicio
+    ).first()
+
+    return solapada is None
+
+# ─────────────────────────────────────────────
 # Confirmar reserva tras pago exitoso (llamada interna desde pagos-service o webhook)
 # ─────────────────────────────────────────────
 @router.patch("/{reserva_id}/confirmar")
@@ -403,7 +447,14 @@ async def confirmar_reserva_tras_pago(
         # Idempotente: ya estaba confirmada, no hacer nada
         return {"ok": True, "estado": "confirmada", "mensaje": "La reserva ya estaba confirmada."}
 
-    if reserva.estado not in (EstadoReserva.pendiente,):
+    # Si la reserva fue cancelada por expiración tardía, intentar recuperarla si el espacio sigue disponible
+    if reserva.estado == EstadoReserva.cancelada:
+        disponible = await verificar_espacio_disponible(reserva.espacio_id, reserva.fecha_inicio, reserva.fecha_fin, db, reserva.id)
+        if not disponible:
+            raise HTTPException(409, "El espacio ya fue tomado por otra reserva. Se requiere reembolso.")
+        print(f"[RESERVAS] 🔄 Recuperando reserva cancelada #{reserva.id} tras cobro tardío exitoso...")
+
+    elif reserva.estado not in (EstadoReserva.pendiente, EstadoReserva.fallida):
         raise HTTPException(
             status_code=409,
             detail=f"No se puede confirmar una reserva en estado '{reserva.estado.value}'."
@@ -414,7 +465,7 @@ async def confirmar_reserva_tras_pago(
     db.commit()
     db.refresh(reserva)
 
-    # Notificar a estacionamientos que el espacio pasa de "bloqueado" a "reservado"
+    # Notificar a estacionamientos que el espacio pasa a "reservado"
     async with httpx.AsyncClient(timeout=6.0) as client:
         try:
             await client.put(

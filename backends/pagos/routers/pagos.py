@@ -32,17 +32,17 @@ async def confirmar_reserva_con_reintentos(reserva_id: int) -> bool:
                     headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
                 )
                 if resp.status_code in (200, 204):
-                    print(f"[PAGOS] ✅ Reserva #{reserva_id} confirmada exitosamente en intento {attempt}.")
+                    print(f"[PAGOS] âœ… Reserva #{reserva_id} confirmada exitosamente en intento {attempt}.")
                     return True
-                print(f"[PAGOS] ⚠️ Intento {attempt}/3 falló al confirmar reserva #{reserva_id}. Status: {resp.status_code}")
+                print(f"[PAGOS] âš ï¸ Intento {attempt}/3 fallÃ³ al confirmar reserva #{reserva_id}. Status: {resp.status_code}")
         except httpx.RequestError as exc:
-            print(f"[PAGOS] ⚠️ Intento {attempt}/3 error de red al confirmar reserva #{reserva_id}: {exc}")
+            print(f"[PAGOS] âš ï¸ Intento {attempt}/3 error de red al confirmar reserva #{reserva_id}: {exc}")
         
         if attempt < len(delays):
             await asyncio.sleep(delay)
     return False
 
-# 2.1 Listar pagos que requieren revisión manual (Admin)
+# 2.1 Listar pagos que requieren revisiÃ³n manual (Admin)
 @router.get("/pendientes-revision", response_model=List[PagoResponse])
 def listar_pagos_pendientes_revision(
     db: Session = Depends(get_db),
@@ -52,6 +52,8 @@ def listar_pagos_pendientes_revision(
 PLATAFORMA_CULQI_PUBLIC = os.getenv("CULQI_PUBLIC_KEY", "")
 PLATAFORMA_CULQI_SECRET = os.getenv("CULQI_SECRET_KEY", "")
 INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
+RESERVAS_SERVICE_URL = os.getenv("RESERVAS_SERVICE_URL", "http://reservas:8003")
+USUARIOS_SERVICE_URL = os.getenv("USUARIOS_SERVICE_URL", "http://usuarios:8001")
 
 # 1. Crear orden de pago (Solo llamada interna desde reservas o usuarios)
 @router.post("/", response_model=PagoResponse, status_code=status.HTTP_201_CREATED)
@@ -123,7 +125,7 @@ def obtener_pagos_por_suscripcion(
         query = query.filter(Pago.pagador_id == current_user.id)
     return query.order_by(Pago.id.desc()).all()
 
-# 2. Configuración pública para el Checkout Culqi en frontend
+# 2. ConfiguraciÃ³n pÃºblica para el Checkout Culqi en frontend
 @router.get("/config-publica", response_model=ConfigPublicaResponse)
 def obtener_config_publica(
     pago_id: int,
@@ -137,11 +139,11 @@ def obtener_config_publica(
     if current_user.rol != "admin" and pago.pagador_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este pago")
 
-    # ✅ Validar que el pago siga pendiente antes de abrir checkout
+    # âœ… Validar que el pago siga pendiente antes de abrir checkout
     if pago.estado != EstadoPago.pendiente:
         raise HTTPException(
             status_code=409,
-            detail=f"Este pago ya no está pendiente (estado: {pago.estado.value}). No se puede iniciar el checkout."
+            detail=f"Este pago ya no estÃ¡ pendiente (estado: {pago.estado.value}). No se puede iniciar el checkout."
         )
 
     if pago.tipo == TipoPago.reserva:
@@ -152,7 +154,7 @@ def obtener_config_publica(
         if not cred or not is_ok:
             raise HTTPException(
                 status_code=409,
-                detail="El propietario de este estacionamiento aún no ha configurado credenciales válidas de Culqi."
+                detail="El propietario de este estacionamiento aÃºn no ha configurado credenciales vÃ¡lidas de Culqi."
             )
         if cred.public_key_enc:
             try:
@@ -192,7 +194,7 @@ async def cobrar_con_culqi(
         pago.estado = EstadoPago.pendiente
 
     if not payload.token_id or not payload.token_id.startswith("tkn_"):
-        raise HTTPException(status_code=400, detail="Token de tarjeta inválido.")
+        raise HTTPException(status_code=400, detail="Token de tarjeta invÃ¡lido.")
 
     if pago.tipo == TipoPago.reserva and pago.reserva_id:
         async with httpx.AsyncClient(timeout=6.0) as client:
@@ -207,10 +209,16 @@ async def cobrar_con_culqi(
                     if estado_r != "pendiente":
                         raise HTTPException(
                             status_code=409,
-                            detail=f"La reserva ya no está pendiente de pago (estado: {estado_r}). No se procesó el cargo."
+                            detail=f"La reserva ya no estÃ¡ pendiente de pago (estado: {estado_r}). No se procesÃ³ el cargo."
                         )
                 elif res_verif.status_code == 404:
                     raise HTTPException(status_code=404, detail="La reserva asociada no existe.")
+
+                # Extender plazo de expiración (10 min adicionales) para evitar carreras durante el cobro
+                await client.patch(
+                    f"{RESERVAS_SERVICE_URL}/reservas/{pago.reserva_id}/extender-expiracion",
+                    headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+                )
             except httpx.RequestError as exc:
                 raise HTTPException(status_code=503, detail=f"No se pudo verificar el estado de la reserva: {str(exc)}")
 
@@ -234,7 +242,7 @@ async def cobrar_con_culqi(
     if not secret_key_usar or not secret_key_usar.startswith("sk_test_"):
         raise HTTPException(
             status_code=500,
-            detail="Error de configuración: La llave secreta no es de prueba (sk_test_)."
+            detail="Error de configuraciÃ³n: La llave secreta no es de prueba (sk_test_)."
         )
 
     amount_cents = int(round(pago.monto * 100))
@@ -260,7 +268,7 @@ async def cobrar_con_culqi(
         except httpx.RequestError as exc:
             raise HTTPException(
                 status_code=502,
-                detail=f"Error de comunicación con la pasarela de pagos Culqi: {str(exc)}"
+                detail=f"Error de comunicaciÃ³n con la pasarela de pagos Culqi: {str(exc)}"
             )
 
     culqi_data = resp_culqi.json() if resp_culqi.content else {}
@@ -278,7 +286,7 @@ async def cobrar_con_culqi(
         if pago.tipo == TipoPago.reserva and pago.reserva_id:
             confirmada = await confirmar_reserva_con_reintentos(pago.reserva_id)
             if not confirmada:
-                print(f"[PAGOS] ⚠️ Reintentos agotados. Marcando pago #{pago.id} como pagado_sin_confirmar.")
+                print(f"[PAGOS] âš ï¸ Reintentos agotados. Marcando pago #{pago.id} como pagado_sin_confirmar.")
                 pago.estado = EstadoPago.pagado_sin_confirmar
                 db.commit()
                 db.refresh(pago)
@@ -291,17 +299,17 @@ async def cobrar_con_culqi(
                         json={"estado": "activa"}
                     )
                     if resp_activar.status_code == 200:
-                        print(f"[PAGOS] ✅ Suscripción #{pago.suscripcion_id} activada correctamente.")
+                        print(f"[PAGOS] âœ… SuscripciÃ³n #{pago.suscripcion_id} activada correctamente.")
                     else:
-                        print(f"[PAGOS] ⚠️ Pago #{pago.id} aprobado pero no se pudo activar suscripción #{pago.suscripcion_id}. Status: {resp_activar.status_code}")
+                        print(f"[PAGOS] âš ï¸ Pago #{pago.id} aprobado pero no se pudo activar suscripciÃ³n #{pago.suscripcion_id}. Status: {resp_activar.status_code}")
                 except httpx.RequestError as exc:
-                    print(f"[PAGOS] ⚠️ Error de red al activar suscripción #{pago.suscripcion_id}: {str(exc)}")
+                    print(f"[PAGOS] âš ï¸ Error de red al activar suscripciÃ³n #{pago.suscripcion_id}: {str(exc)}")
     else:
         pago.estado = EstadoPago.fallido
         db.commit()
         db.refresh(pago)
 
-        # Notificar al servicio de reservas que el pago falló (libera el espacio y marca reserva fallida)
+        # Notificar al servicio de reservas que el pago fallÃ³ (libera el espacio y marca reserva fallida)
         if pago.tipo == TipoPago.reserva and pago.reserva_id:
             async with httpx.AsyncClient(timeout=6.0) as client:
                 try:
@@ -310,14 +318,14 @@ async def cobrar_con_culqi(
                         headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
                     )
                 except Exception as exc:
-                    print(f"[PAGOS] ⚠️ Error notificando fallo de reserva #{pago.reserva_id}: {exc}")
+                    print(f"[PAGOS] âš ï¸ Error notificando fallo de reserva #{pago.reserva_id}: {exc}")
 
         error_msg = culqi_data.get("user_message") or culqi_data.get("merchant_message") or "Error al procesar el pago."
         raise HTTPException(status_code=402, detail=error_msg)
 
     return pago
 
-# 3.1 Webhook oficial de Culqi (Eventos asíncronos charge.creation.succeeded / charge.creation.failed)
+# 3.1 Webhook oficial de Culqi (Eventos asÃ­ncronos charge.creation.succeeded / charge.creation.failed)
 @router.post("/webhook/culqi")
 async def webhook_culqi(payload: dict, db: Session = Depends(get_db)):
     event_type = payload.get("type") or payload.get("event")
@@ -379,9 +387,9 @@ async def webhook_culqi(payload: dict, db: Session = Depends(get_db)):
     return {"status": "unhandled_event"}
 
 
-# ─────────────────────────────────────────────
-# 4. Endpoint interno: verificar si propietario tiene Culqi válido
-# ─────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 4. Endpoint interno: verificar si propietario tiene Culqi vÃ¡lido
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.get("/internal/propietario/{propietario_id}/culqi-valida")
 def verificar_culqi_propietario_interno(
     propietario_id: int,
@@ -391,3 +399,4 @@ def verificar_culqi_propietario_interno(
     cred = db.query(CredencialCulqi).filter(CredencialCulqi.propietario_id == propietario_id).first()
     is_valida = bool(cred and (cred.esta_verificada or cred.valida))
     return {"propietario_id": propietario_id, "valida": is_valida}
+
