@@ -19,14 +19,17 @@ El sistema está compuesto por **4 microservicios backend independientes**, un *
 
 ---
 
-## 🔒 Mecanismo de Concurrencia y Exclusión Mutua
+## 🔒 Mecanismo de Concurrencia, Exclusión Mutua y Resiliencia de Pagos
 
-Para evitar inconsistencias y *race conditions* (por ejemplo, que dos usuarios reserven el mismo espacio simultáneamente):
+Para evitar inconsistencias, cobros huérfanos y *race conditions*:
 1. **Llamada REST Inter-Servicio**: El servicio de `reservas` invoca el endpoint `/espacios/{espacio_id}/reservar_atomico` del servicio de `estacionamientos` protegido con `X-Internal-Key`.
-2. **Bloqueo Pesimista (`SELECT FOR UPDATE`)**: El servicio de `estacionamientos` abre una transacción PostgreSQL y ejecuta `SELECT ... FOR UPDATE` sobre el espacio solicitado. Si el estado es `libre`, lo cambia a `reservado` de manera atómica. Si ya está reservado u ocupado, devuelve inmediatamente `409 Conflict`.
+2. **Bloqueo Pesimista (`SELECT FOR UPDATE`)**: El servicio de `estacionamientos` abre una transacción PostgreSQL y ejecuta `SELECT ... FOR UPDATE` sobre el espacio solicitado. Si el estado es `libre`, lo cambia a `bloqueado`/`reservado` de manera atómica. Si ya está reservado u ocupado, devuelve inmediatamente `409 Conflict`.
 3. **Validación de Solapamiento Temporal**: El servicio de `reservas` también verifica y bloquea consultas concurrentes de reservas en `db_reservas`.
 4. **Manejo Centralizado de Horarios (UTC-5 Lima)**: Módulo `time_utils` para garantizar cálculo homogéneo de tarifas diurnas vs nocturnas en cotizaciones.
-5. **Reintentos Resilientes en Pagos**: Tras cobrar exitosamente con Culqi, el servicio de Pagos ejecuta hasta 3 reintentos automáticos para confirmar la reserva en el microservicio de Reservas.
+5. **Extensión Temporal Pre-Cobro (`extender-expiracion`)**: Antes de interactuar con el API de Culqi, el servicio de Pagos extiende automáticamente el plazo de la reserva (10 minutos adicionales) para prevenir que una reserva pendiente expire mientras el banco o 3DS procesa la tarjeta.
+6. **Background Task de Expiración Atómica**: Un worker en segundo plano en `reservas` evalúa periódicamente reservas pendientes expiradas y las cancela mediante un `UPDATE` en lote atómico para evitar carreras con `/confirmar`.
+7. **Recuperación Automática de Reservas Expiradas tras Pago Exitoso**: Si por alguna latencia extrema de red el pago se cobra pero la reserva se canceló momentos antes, el endpoint interno `/confirmar` valida si el espacio sigue disponible y sin solapamiento para recuperarla y confirmarla automáticamente sin fricción para el usuario.
+8. **Reintentos Resilientes en Pagos**: Tras cobrar exitosamente con Culqi, el servicio de Pagos ejecuta hasta 3 reintentos automáticos para confirmar la reserva en el microservicio de Reservas.
 
 ---
 
@@ -57,7 +60,7 @@ El proyecto cuenta con una suite integral de pruebas con **pytest**:
 ```bash
 pytest tests/test_culqi_flow.py -v
 ```
-*Cubre salud de servicios, seguridad inter-servicio, credenciales Culqi, cotizador de tarifas diurna/nocturna, bloqueo atómico, expiración de reservas, órdenes de suscripción y manejo de zonas horarias.*
+*Cubre salud de servicios, seguridad inter-servicio, credenciales Culqi cifradas con Fernet, cotizador de tarifas diurna/nocturna, bloqueo atómico pesimista, expiración de reservas, órdenes de suscripción SaaS, flujo de confirmación/reintentos de pago y manejo de zonas horarias.*
 
 ---
 
