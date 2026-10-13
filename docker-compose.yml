@@ -232,6 +232,26 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  frontend-vue:
+    build: ./frontend-vue
+    container_name: frontend_vue_estacionamientos
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      - TZ=America/Lima
+    depends_on:
+      usuarios:
+        condition: service_healthy
+      estacionamientos:
+        condition: service_healthy
+      reservas:
+        condition: service_healthy
+      pagos:
+        condition: service_healthy
+    networks:
+      - estacionamientos_net
+
 networks:
   estacionamientos_net:
     driver: bridge
