@@ -59,7 +59,8 @@ def tokens(client):
     user_cond = r_log.json()["user"]
 
     # 3. Admin
-    r_adm = client.post(f"{BASE_USUARIOS}/login", json={"email": "admin@smartpark.com", "password": "admin123"})
+    admin_password = os.getenv("ADMIN_PASSWORD", "Marco7057")
+    r_adm = client.post(f"{BASE_USUARIOS}/login", json={"email": "admin@smartpark.com", "password": admin_password})
     token_admin = r_adm.json()["access_token"]
 
     return {

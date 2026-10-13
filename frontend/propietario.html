@@ -1657,12 +1657,14 @@
                 try {
                     const pagosResp = await fetch(`${API_PAGOS}/pagos/propietario/${propietarioId}`);
                     if (pagosResp.ok) {
-                        pagosMiProp = await pagosResp.json();
+                        const resPJson = await pagosResp.json();
+                        pagosMiProp = Array.isArray(resPJson) ? resPJson : (resPJson.data || []);
                     }
                 } catch(e) {
                     // Fallback
                     const fallbackResp = await fetch(`${API_PAGOS}/pagos/`);
-                    const allP = await fallbackResp.json();
+                    const resFbJson = await fallbackResp.json();
+                    const allP = Array.isArray(resFbJson) ? resFbJson : (resFbJson.data || []);
                     pagosMiProp = allP.filter(p => p.receptor_id == propietarioId);
                 }
 
@@ -1673,7 +1675,8 @@
                     
                     // Traer reservas para machear si el pago no traía sede_id directamente
                     const resResp = await fetch(`${API_RESERVAS}/reservas/`);
-                    const resAll = await resResp.json();
+                    const resRJson = await resResp.json();
+                    const resAll = Array.isArray(resRJson) ? resRJson : (resRJson.data || []);
                     const reservasSedeIds = resAll.filter(r => espaciosSede.includes(r.espacio_id)).map(r => r.id);
 
                     pagosMiProp = pagosMiProp.filter(p => 
@@ -1847,7 +1850,8 @@
         async function loadIncidencias() {
             try {
                 const resp = await fetch(`${API_ESTACIONAMIENTOS}/incidencias/`);
-                const all = await resp.json();
+                const resIncJson = await resp.json();
+                const all = Array.isArray(resIncJson) ? resIncJson : (resIncJson.data || []);
                 const myIncidents = all.filter(inc => sedesIds.includes(inc.sede_id));
                 const list = document.getElementById('incidencias-list');
                 const badge = document.getElementById('badge-incidencias-count');

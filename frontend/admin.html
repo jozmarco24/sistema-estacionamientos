@@ -1303,7 +1303,8 @@
         async function loadConductores() {
             try {
                 const response = await fetch(`${API_USUARIOS}/usuarios/`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const usuarios = await response.json();
+                const resJson = await response.json();
+                const usuarios = Array.isArray(resJson) ? resJson : (resJson.data || []);
                 const tbody = document.getElementById('conductores-tbody');
                 tbody.innerHTML = '';
                 
@@ -1325,7 +1326,8 @@
         async function loadSedesAndStats() {
             try {
                 const sedesResp = await fetch(`${API_ESTACIONAMIENTOS}/sedes/`);
-                sedesCache = await sedesResp.json();
+                const resJson = await sedesResp.json();
+                sedesCache = Array.isArray(resJson) ? resJson : (resJson.data || []);
                 
                 document.getElementById('stat-sedes').innerText = sedesCache.length;
                 document.getElementById('badge-sedes-count').innerText = `${sedesCache.length} sedes`;
@@ -1440,7 +1442,8 @@
                     try {
                         const espRes = await fetch(`${API_ESTACIONAMIENTOS}/espacios/`);
                         if (espRes.ok) {
-                            const espaciosList = await espRes.json();
+                            const resEspJson = await espRes.json();
+                            const espaciosList = Array.isArray(resEspJson) ? resEspJson : (resEspJson.data || []);
                             espaciosList.forEach(esp => {
                                 const sedeObj = (sedesCache || []).find(s => s.id === esp.sede_id);
                                 espaciosMapCache[esp.id] = {
@@ -1471,7 +1474,8 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!res.ok) return;
-                const reservas = await res.json();
+                const resReservasJson = await res.json();
+                const reservas = Array.isArray(resReservasJson) ? resReservasJson : (resReservasJson.data || []);
                 
                 // Enriquecer reservas con datos de sede y espacio
                 reservasCache = reservas.map(r => {
@@ -1525,7 +1529,8 @@
             try {
                 const response = await fetch(`${API_ESTACIONAMIENTOS}/incidencias/`);
                 if(response.ok) {
-                    const incidencias = await response.json();
+                    const resIncJson = await response.json();
+                    const incidencias = Array.isArray(resIncJson) ? resIncJson : (resIncJson.data || []);
                     const list = document.getElementById('incidencias-list');
                     list.innerHTML = '';
                     
@@ -2188,7 +2193,8 @@
             try {
                 const res = await fetch(`${API_PAGOS}/pagos/`);
                 if (!res.ok) throw new Error('Error al consultar transacciones');
-                pagosCache = await res.json();
+                const resPagosJson = await res.json();
+                pagosCache = Array.isArray(resPagosJson) ? resPagosJson : (resPagosJson.data || []);
 
                 const tbody = document.getElementById('pagos-tbody');
                 tbody.innerHTML = '';

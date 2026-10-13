@@ -859,7 +859,8 @@
             try {
                 const response = await fetch(`${API_RESERVAS}/reservas/`, { headers: { 'Authorization': `Bearer ${token}` }});
                 if (!response.ok) throw new Error();
-                const allReservas = await response.json();
+                const resJson = await response.json();
+                const allReservas = Array.isArray(resJson) ? resJson : (resJson.data || []);
                 const slotsIds = slotsCache.map(s => s.id);
                 const slotsMap = {}; 
                 slotsCache.forEach(s => { slotsMap[s.id] = s.numero; });
@@ -1059,7 +1060,8 @@
             try {
                 const res = await fetch(`${API_PAGOS}/pagos/`);
                 if (res.ok) {
-                    const pagosAll = await res.json();
+                    const resJson = await res.json();
+                    const pagosAll = Array.isArray(resJson) ? resJson : (resJson.data || []);
                     
                     // Filtrar los pagos que correspondan a los espacios/reservas de esta sede
                     const slotsIds = slotsCache.map(s => s.id);
