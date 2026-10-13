@@ -1,4 +1,3 @@
-// frontend-vue/src/stores/auth.js
 import { defineStore } from 'pinia'
 import api, { URLS } from '@/services/api'
 
