@@ -7,7 +7,11 @@ SCHEMA_NAME = os.getenv("SCHEMA_NAME", "db_estacionamientos")
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"options": f"-c search_path={SCHEMA_NAME},public"}
+    connect_args={"options": f"-c search_path={SCHEMA_NAME},public"},
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
+    pool_recycle=1800,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
