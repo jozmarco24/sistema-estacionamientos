@@ -1,4 +1,4 @@
-﻿import os
+import os
 import asyncio
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -102,4 +102,3 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "reservas"}
-
