@@ -1,7 +1,7 @@
 import os
 import math
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -65,9 +65,15 @@ async def crear_sede(
     db.refresh(nueva_sede)
     return nueva_sede
 
-@router.get("/", response_model=List[SedeResponse])
-def listar_sedes(db: Session = Depends(get_db)):
-    return db.query(Sede).all()
+@router.get("/")
+def listar_sedes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    total = db.query(Sede).count()
+    items = db.query(Sede).offset(skip).limit(limit).all()
+    return {"total": total, "skip": skip, "limit": limit, "data": items}
 
 @router.get("/cercanas", response_model=List[SedeCercanaResponse])
 async def listar_sedes_cercanas(

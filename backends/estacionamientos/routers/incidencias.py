@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from auth import CurrentUser, get_current_user
@@ -41,9 +41,15 @@ def listar_incidencias_por_sede(sede_id: int, db: Session = Depends(get_db)):
     incidencias = db.query(Incidencia).filter(Incidencia.sede_id == sede_id).all()
     return incidencias
 
-@router.get("/", response_model=List[IncidenciaResponse])
-def listar_todas_incidencias(db: Session = Depends(get_db)):
-    return db.query(Incidencia).order_by(Incidencia.fecha_reporte.desc()).all()
+@router.get("/")
+def listar_todas_incidencias(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    total = db.query(Incidencia).count()
+    items = db.query(Incidencia).order_by(Incidencia.fecha_reporte.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "skip": skip, "limit": limit, "data": items}
 
 @router.get("/propietario/{propietario_id}", response_model=List[IncidenciaResponse])
 def listar_incidencias_por_propietario(propietario_id: int, db: Session = Depends(get_db)):

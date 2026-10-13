@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -30,12 +30,23 @@ def crear_espacio(espacio_in: EspacioCreate, db: Session = Depends(get_db), curr
     db.refresh(nuevo_espacio)
     return nuevo_espacio
 
-@router.get("/", response_model=List[EspacioResponse])
-def listar_todos_los_espacios(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(Espacio).offset(skip).limit(limit).all()
+@router.get("/")
+def listar_todos_los_espacios(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    total = db.query(Espacio).count()
+    items = db.query(Espacio).offset(skip).limit(limit).all()
+    return {"total": total, "skip": skip, "limit": limit, "data": items}
 
 @router.get("/sede/{sede_id}", response_model=List[EspacioResponse])
-def listar_espacios_por_sede(sede_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def listar_espacios_por_sede(
+    sede_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
     # Público para conductores que buscan espacio
     return db.query(Espacio).filter(Espacio.sede_id == sede_id).offset(skip).limit(limit).all()
 

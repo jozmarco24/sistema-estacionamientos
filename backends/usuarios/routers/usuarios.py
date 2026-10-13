@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -21,10 +21,16 @@ from auth import (
     require_admin
 )
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
 @router.post("/registro", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
-def registrar_usuario(user_in: UsuarioCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def registrar_usuario(request: Request, user_in: UsuarioCreate, db: Session = Depends(get_db)):
     if user_in.rol not in [RolUsuario.conductor, RolUsuario.propietario]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -47,7 +53,8 @@ def registrar_usuario(user_in: UsuarioCreate, db: Session = Depends(get_db)):
     return nuevo_usuario
 
 @router.post("/login", response_model=TokenResponse)
-def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.email == credentials.email).first()
     if not usuario or not verify_password(credentials.password, usuario.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
@@ -105,12 +112,17 @@ def obtener_cuenta_bancaria_propietario(id: int, db: Session = Depends(get_db)):
         "titular_cuenta": prop.titular_cuenta
     }
 
-@router.get("/", response_model=List[UsuarioResponse])
+@router.get("/", response_model=dict)
 def listar_usuarios(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin)
 ):
-    return db.query(Usuario).all()
+    total = db.query(Usuario).count()
+    items = db.query(Usuario).offset(skip).limit(limit).all()
+    data = [UsuarioResponse.model_validate(u) for u in items]
+    return {"total": total, "skip": skip, "limit": limit, "data": data}
 
 # CRUD Propietarios (Admin only)
 @router.post("/propietarios", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
