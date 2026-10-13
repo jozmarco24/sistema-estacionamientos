@@ -8,6 +8,15 @@ from database import engine, Base, SCHEMA_NAME
 from routers.sedes import router as sedes_router
 from routers.espacios import router as espacios_router
 from routers.incidencias import router as incidencias_router
+from logger_config import setup_logger
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+logger = setup_logger("estacionamientos")
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +42,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080").split(",")
 

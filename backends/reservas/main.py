@@ -8,8 +8,16 @@ from sqlalchemy import text
 from routers.reservas import router as reservas_router, liberar_espacio_remoto
 from models import Reserva, EstadoReserva
 from fastapi.middleware.cors import CORSMiddleware
+from logger_config import setup_logger
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from time_utils import utc_now
+
+logger = setup_logger("reservas")
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 # Tarea en segundo plano para expiracion automatica de reservas pendientes cada 30 segundos
 async def background_expirar_reservas():
@@ -36,13 +44,13 @@ async def background_expirar_reservas():
                 db.commit()
 
                 for res_id, esp_id in vencidas_info:
-                    print(f"[RESERVAS BACKGROUND] Expirando reserva #{res_id} por tiempo agotado...")
+                    logger.info("Expirando reserva por tiempo agotado", extra={"reserva_id": res_id, "espacio_id": esp_id})
                     await liberar_espacio_remoto(esp_id)
             db.close()
         except asyncio.CancelledError:
             break
         except Exception as e:
-            print(f"[RESERVAS BACKGROUND] Error en tarea de expiracion: {e}")
+            logger.error("Error en tarea de expiracion", extra={"error": str(e)}, exc_info=True)
 
 
 @asynccontextmanager
@@ -84,6 +92,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080").split(",")
 
