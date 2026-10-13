@@ -4,7 +4,13 @@ import httpx
 from datetime import datetime, timezone
 import pytz
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from logger_config import setup_logger
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from circuit_breaker import http_breaker
+import pybreaker
+
+logger = setup_logger("pagos")
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -26,29 +32,58 @@ INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
 RESERVAS_SERVICE_URL = os.getenv("RESERVAS_SERVICE_URL", "http://reservas:8003")
 USUARIOS_SERVICE_URL = os.getenv("USUARIOS_SERVICE_URL", "http://usuarios:8001")
 
-
-
 router = APIRouter(prefix="/pagos", tags=["pagos"])
 
+@http_breaker
+def _llamada_http(url, headers, json_data=None, method="patch"):
+    import httpx
+    if method == "patch":
+        r = httpx.patch(url, headers=headers, json=json_data, timeout=5.0)
+    elif method == "get":
+        r = httpx.get(url, headers=headers, timeout=5.0)
+    elif method == "post":
+        r = httpx.post(url, headers=headers, json=json_data, timeout=5.0)
+    elif method == "put":
+        r = httpx.put(url, headers=headers, json=json_data, timeout=5.0)
+    else:
+        r = httpx.request(method, url, headers=headers, json=json_data, timeout=5.0)
+    r.raise_for_status()
+    return r
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True
+)
+async def _patch_confirmar_reserva(reserva_id: int) -> httpx.Response:
+    url = f"{RESERVAS_SERVICE_URL}/reservas/{reserva_id}/confirmar"
+    headers = {"X-Internal-Key": INTERNAL_SERVICE_KEY}
+    try:
+        return _llamada_http(url, headers=headers, method="patch")
+    except pybreaker.CircuitBreakerError as e:
+        logger.warning("[CIRCUIT BREAKER] Servicio no disponible", extra={"url": url, "error": str(e)})
+        raise httpx.RequestError(f"[CIRCUIT BREAKER] Servicio no disponible: {e}")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code >= 500:
+            logger.warning("Error 5xx de reservas al confirmar", extra={"reserva_id": reserva_id, "status": e.response.status_code})
+            raise httpx.RequestError(f"Error 5xx del servidor: {e.response.status_code}")
+        return e.response
+    except Exception as e:
+        logger.warning(f"[HTTP] Error: {e}", extra={"url": url, "error": str(e)})
+        raise httpx.RequestError(f"Error en llamada HTTP: {e}")
+
 async def confirmar_reserva_con_reintentos(reserva_id: int) -> bool:
-    delays = [2, 4, 8]
-    for attempt, delay in enumerate(delays, start=1):
-        try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                resp = await client.patch(
-                    f"{RESERVAS_SERVICE_URL}/reservas/{reserva_id}/confirmar",
-                    headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
-                )
-                if resp.status_code in (200, 204):
-                    print(f"[PAGOS] ✅ Reserva #{reserva_id} confirmada exitosamente en intento {attempt}.")
-                    return True
-                print(f"[PAGOS] ⚠️ Intento {attempt}/3 falló al confirmar reserva #{reserva_id}. Status: {resp.status_code}")
-        except httpx.RequestError as exc:
-            print(f"[PAGOS] ⚠️ Intento {attempt}/3 error de red al confirmar reserva #{reserva_id}: {exc}")
-        
-        if attempt < len(delays):
-            await asyncio.sleep(delay)
-    return False
+    try:
+        resp = await _patch_confirmar_reserva(reserva_id)
+        if resp.status_code in (200, 204):
+            logger.info("Reserva confirmada exitosamente tras reintentos", extra={"reserva_id": reserva_id})
+            return True
+        logger.warning("Respuesta no exitosa al confirmar reserva", extra={"reserva_id": reserva_id, "status": resp.status_code})
+        return False
+    except httpx.RequestError as exc:
+        logger.warning("Error de red al confirmar reserva tras 3 intentos con backoff", extra={"reserva_id": reserva_id, "error": str(exc)})
+        return False
 
 # 2.1 Listar pagos que requieren revisiÃ³n manual (Admin)
 @router.get("/pendientes-revision", response_model=List[PagoResponse])
@@ -84,25 +119,40 @@ def crear_pago(
     return nuevo_pago
 
 # 1.1 Listar pagos globalmente (Admin, Propietario o Conductor con filtro por rol)
-@router.get("/", response_model=List[PagoResponse])
+@router.get("/", response_model=dict)
 def listar_pagos(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
+    query = db.query(Pago)
     if current_user.rol == "admin":
-        return db.query(Pago).order_by(Pago.id.desc()).all()
+        pass
     elif current_user.rol == "propietario":
-        return db.query(Pago).filter(Pago.receptor_id == current_user.id).order_by(Pago.id.desc()).all()
-    return db.query(Pago).filter(Pago.pagador_id == current_user.id).order_by(Pago.id.desc()).all()
+        query = query.filter(Pago.receptor_id == current_user.id)
+    else:
+        query = query.filter(Pago.pagador_id == current_user.id)
+
+    total = query.count()
+    items = query.order_by(Pago.id.desc()).offset(skip).limit(limit).all()
+    data = [PagoResponse.model_validate(p) for p in items]
+    return {"total": total, "skip": skip, "limit": limit, "data": data}
 
 # 1.2 Listar pagos por propietario
-@router.get("/propietario/{propietario_id}", response_model=List[PagoResponse])
+@router.get("/propietario/{propietario_id}", response_model=dict)
 def listar_pagos_propietario(
     propietario_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: Optional[CurrentUser] = Depends(get_current_user_optional)
 ):
-    return db.query(Pago).filter(Pago.receptor_id == propietario_id).order_by(Pago.id.desc()).all()
+    query = db.query(Pago).filter(Pago.receptor_id == propietario_id)
+    total = query.count()
+    items = query.order_by(Pago.id.desc()).offset(skip).limit(limit).all()
+    data = [PagoResponse.model_validate(p) for p in items]
+    return {"total": total, "skip": skip, "limit": limit, "data": data}
 
 # 1.3 Obtener pagos por reserva
 @router.get("/reserva/{reserva_id}", response_model=List[PagoResponse])
@@ -356,7 +406,7 @@ async def webhook_culqi(payload: dict, db: Session = Depends(get_db)):
                         headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
                     )
                 except Exception as e:
-                    print(f"[WEBHOOK] Error confirmando reserva: {e}")
+                    logger.error("Error confirmando reserva en webhook", extra={"error": str(e)}, exc_info=True)
         elif pago.tipo == TipoPago.suscripcion and pago.suscripcion_id:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 try:
@@ -366,7 +416,7 @@ async def webhook_culqi(payload: dict, db: Session = Depends(get_db)):
                         json={"estado": "activa"}
                     )
                 except Exception as e:
-                    print(f"[WEBHOOK] Error activando suscripcion: {e}")
+                    logger.error("Error activando suscripcion en webhook", extra={"error": str(e)}, exc_info=True)
 
         return {"status": "ok", "action": "pago_confirmado"}
 
@@ -383,7 +433,7 @@ async def webhook_culqi(payload: dict, db: Session = Depends(get_db)):
                         headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
                     )
                 except Exception as e:
-                    print(f"[WEBHOOK] Error marcando reserva fallida: {e}")
+                    logger.error("Error marcando reserva fallida en webhook", extra={"error": str(e)}, exc_info=True)
 
         return {"status": "ok", "action": "pago_fallido"}
 

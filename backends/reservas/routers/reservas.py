@@ -1,7 +1,7 @@
 import os
 import httpx
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -13,6 +13,18 @@ from auth import (
     verify_internal_key, CurrentUser
 )
 from time_utils import utc_now, to_utc, es_horario_diurno, get_hora_lima
+from logger_config import setup_logger
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
+
+from circuit_breaker import http_breaker
+import pybreaker
+
+logger = setup_logger("reservas")
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/reservas", tags=["reservas"])
 
@@ -20,19 +32,66 @@ ESTACIONAMIENTOS_SERVICE_URL = os.getenv("ESTACIONAMIENTOS_SERVICE_URL", "http:/
 PAGOS_SERVICE_URL = os.getenv("PAGOS_SERVICE_URL", "http://pagos:8004")
 INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
 
+# ─────────────────────────────────────────────
+# Circuit Breaker HTTP
+# ─────────────────────────────────────────────
+@http_breaker
+def _llamada_http(url, headers, json_data=None, method="patch"):
+    import httpx
+    if method == "patch":
+        r = httpx.patch(url, headers=headers, json=json_data, timeout=5.0)
+    elif method == "get":
+        r = httpx.get(url, headers=headers, timeout=5.0)
+    elif method == "post":
+        r = httpx.post(url, headers=headers, json=json_data, timeout=5.0)
+    elif method == "put":
+        r = httpx.put(url, headers=headers, json=json_data, timeout=5.0)
+    else:
+        r = httpx.request(method, url, headers=headers, json=json_data, timeout=5.0)
+    r.raise_for_status()
+    return r
+
+# Circuit Breaker y Reintentos para llamadas externas
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=8),
+    retry=retry_if_exception_type(httpx.RequestError),
+    reraise=True
+)
+async def llamar_servicio_externo(method: str, url: str, headers: dict, json: dict = None) -> httpx.Response:
+    try:
+        r = _llamada_http(url, headers=headers, json_data=json, method=method.lower())
+        return r
+    except pybreaker.CircuitBreakerError as e:
+        logger.warning("[CIRCUIT BREAKER] Servicio no disponible", extra={"url": url, "error": str(e)})
+        raise httpx.RequestError(f"[CIRCUIT BREAKER] Servicio no disponible: {e}")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code >= 500:
+            logger.warning("Error 5xx recibido de servicio externo", extra={"url": url, "status_code": e.response.status_code})
+            raise httpx.RequestError(f"Error del servidor: {e.response.status_code}")
+        return e.response
+    except Exception as e:
+        logger.warning(f"[HTTP] Error: {e}", extra={"url": url, "error": str(e)})
+        raise httpx.RequestError(f"Error en llamada HTTP externa: {e}")
+
 # Función de cálculo de monto en el servidor
 async def calcular_monto_servidor(espacio_id: int, inicio: datetime, fin: datetime, validar_culqi: bool = True):
     if fin <= inicio:
         raise HTTPException(status_code=400, detail="La fecha de fin debe ser posterior a la de inicio.")
     
-    async with httpx.AsyncClient(timeout=8.0) as client:
-        resp = await client.get(
+    try:
+        resp = await llamar_servicio_externo(
+            "GET",
             f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{espacio_id}",
             headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
         )
-        if resp.status_code != 200:
-            raise HTTPException(status_code=404, detail="Espacio no encontrado.")
-        esp_data = resp.json()
+    except httpx.RequestError as exc:
+        logger.warning("Fallo al conectar con servicio de estacionamientos tras reintentos", extra={"error": str(exc)})
+        raise HTTPException(status_code=503, detail="Servicio de estacionamientos no disponible.")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=404, detail="Espacio no encontrado.")
+    esp_data = resp.json()
 
     propietario_id = esp_data.get("propietario_id")
     sede_id = esp_data.get("sede_id")
@@ -40,21 +99,21 @@ async def calcular_monto_servidor(espacio_id: int, inicio: datetime, fin: dateti
 
     # Verificar si el propietario tiene Culqi configurado (estricto al reservar)
     if validar_culqi and propietario_id:
-        async with httpx.AsyncClient(timeout=6.0) as client:
-            try:
-                culqi_check = await client.get(
-                    f"{PAGOS_SERVICE_URL}/pagos/internal/propietario/{propietario_id}/culqi-valida",
-                    headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+        try:
+            culqi_check = await llamar_servicio_externo(
+                "GET",
+                f"{PAGOS_SERVICE_URL}/pagos/internal/propietario/{propietario_id}/culqi-valida",
+                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+            )
+            if culqi_check.status_code == 200 and not culqi_check.json().get("valida", False):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Este estacionamiento no tiene configuradas credenciales de Culqi activas. No puede recibir reservas en este momento."
                 )
-                if culqi_check.status_code == 200 and not culqi_check.json().get("valida", False):
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Este estacionamiento no tiene configuradas credenciales de Culqi activas. No puede recibir reservas en este momento."
-                    )
-            except HTTPException:
-                raise
-            except Exception as e:
-                print(f"Error verificando Culqi de propietario: {e}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("Error verificando Culqi de propietario", extra={"error": str(e), "propietario_id": propietario_id})
 
     inicio_dia = esp_data.get("hora_inicio_dia", 8)
     inicio_noche = esp_data.get("hora_inicio_noche", 20)
@@ -80,7 +139,9 @@ async def calcular_monto_servidor(espacio_id: int, inicio: datetime, fin: dateti
 
 # Endpoint de Cotización
 @router.get("/cotizar", response_model=CotizacionResponse)
+@limiter.limit("30/minute")
 async def cotizar_reserva(
+    request: Request,
     espacio_id: int,
     inicio: Optional[datetime] = None,
     fin: Optional[datetime] = None,
@@ -102,7 +163,9 @@ async def cotizar_reserva(
 
 # Crear Reserva (Conductor logueado)
 @router.post("/", response_model=ReservaResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def crear_reserva(
+    request: Request,
     reserva_in: ReservaCreate,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_conductor)
@@ -126,19 +189,20 @@ async def crear_reserva(
 
     # 2. Bloqueo atómico en servicio de estacionamientos
     url_reserva_atomica = f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{reserva_in.espacio_id}/reservar_atomico"
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            resp_est = await client.put(
-                url_reserva_atomica,
-                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
-            )
-        except httpx.RequestError as exc:
-            raise HTTPException(status_code=503, detail=f"Error conectando con estacionamientos: {str(exc)}")
+    try:
+        resp_est = await llamar_servicio_externo(
+            "PUT",
+            url_reserva_atomica,
+            headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+        )
+    except httpx.RequestError as exc:
+        logger.warning("Fallo al conectar con servicio de estacionamientos tras 3 intentos", extra={"error": str(exc)})
+        raise HTTPException(status_code=503, detail="Servicio de estacionamientos no disponible.")
 
-        if resp_est.status_code == 409:
-            raise HTTPException(status_code=409, detail="El espacio no está disponible en este momento.")
-        elif resp_est.status_code != 200:
-            raise HTTPException(status_code=resp_est.status_code, detail=f"Error bloqueando espacio: {resp_est.text}")
+    if resp_est.status_code == 409:
+        raise HTTPException(status_code=409, detail="El espacio no está disponible en este momento.")
+    elif resp_est.status_code != 200:
+        raise HTTPException(status_code=resp_est.status_code, detail=f"Error bloqueando espacio: {resp_est.text}")
 
     # 3. Validar solapamiento de horario con reservas confirmadas
     reservas_solapadas = db.query(Reserva).filter(
@@ -189,17 +253,17 @@ async def crear_reserva(
     }
 
     pago_creado = False
-    async with httpx.AsyncClient(timeout=8.0) as client:
-        try:
-            resp_p = await client.post(
-                url_pago,
-                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY},
-                json=pago_payload
-            )
-            if resp_p.status_code == 201:
-                pago_creado = True
-        except Exception as err:
-            print(f"Error al crear pago en microservicio: {err}")
+    try:
+        resp_p = await llamar_servicio_externo(
+            "POST",
+            url_pago,
+            headers={"X-Internal-Key": INTERNAL_SERVICE_KEY},
+            json=pago_payload
+        )
+        if resp_p.status_code == 201:
+            pago_creado = True
+    except Exception as err:
+        logger.warning("Fallo al crear pago tras reintentos", extra={"error": str(err)})
 
     # Compensación estricta si no se pudo crear el pago
     if not pago_creado:
@@ -213,13 +277,13 @@ async def crear_reserva(
 # Función auxiliar de compensación para liberar espacio
 async def liberar_espacio_remoto(espacio_id: int):
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.put(
-                f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{espacio_id}/liberar",
-                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
-            )
+        await llamar_servicio_externo(
+            "PUT",
+            f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{espacio_id}/liberar",
+            headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+        )
     except Exception as e:
-        print(f"Error liberando espacio remoto {espacio_id}: {e}")
+        logger.warning("Error liberando espacio remoto tras reintentos", extra={"espacio_id": espacio_id, "error": str(e)})
 
 # Cancelar Reserva
 @router.put("/{reserva_id}/cancelar", response_model=CancelarReservaResponse)
@@ -236,7 +300,10 @@ async def cancelar_reserva(
         raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta reserva")
 
     if reserva.estado in [EstadoReserva.cancelada, EstadoReserva.finalizada]:
-        raise HTTPException(status_code=400, detail="La reserva ya se encuentra cancelada o finalizada")
+        raise HTTPException(status_code=409, detail="La reserva ya se encuentra cancelada o finalizada")
+
+    if reserva.estado == EstadoReserva.confirmada:
+        raise HTTPException(status_code=409, detail="No se puede cancelar una reserva confirmada")
 
     reserva.estado = EstadoReserva.cancelada
     db.commit()
@@ -249,19 +316,22 @@ async def cancelar_reserva(
         reserva=ReservaResponse.model_validate(reserva)
     )
 
-# Listar Reservas (Con filtrado estricto por rol)
-@router.get("/", response_model=List[ReservaResponse])
+# Listar Reservas (Con paginación y filtrado estricto por rol)
+@router.get("/", response_model=dict)
 def listar_reservas(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user)
 ):
-    if current_user.rol == "admin":
-        return db.query(Reserva).order_by(Reserva.id.desc()).all()
-    elif current_user.rol == "conductor":
-        return db.query(Reserva).filter(Reserva.usuario_id == current_user.id).order_by(Reserva.id.desc()).all()
-    else:
-        # Para operador o propietario se retornan las reservas registradas
-        return db.query(Reserva).order_by(Reserva.id.desc()).all()
+    query = db.query(Reserva)
+    if current_user.rol == "conductor":
+        query = query.filter(Reserva.usuario_id == current_user.id)
+    
+    total = query.count()
+    items = query.order_by(Reserva.id.desc()).offset(skip).limit(limit).all()
+    data = [ReservaResponse.model_validate(r) for r in items]
+    return {"total": total, "skip": skip, "limit": limit, "data": data}
 
 # Obtener detalle de una reserva específica
 @router.get("/{reserva_id}", response_model=ReservaResponse)
@@ -416,7 +486,7 @@ async def verificar_espacio_disponible(espacio_id: int, inicio: datetime, fin: d
             if data.get("estado") not in ["libre", "bloqueado"]:
                 return False
         except Exception as e:
-            print(f"[RESERVAS] Error consultando disponibilidad remota: {e}")
+            logger.warning("Error consultando disponibilidad remota", extra={"espacio_id": espacio_id, "error": str(e)})
             return False
 
     # 2. Verificar que no exista otra reserva activa confirmada en ese rango
@@ -452,7 +522,7 @@ async def confirmar_reserva_tras_pago(
         disponible = await verificar_espacio_disponible(reserva.espacio_id, reserva.fecha_inicio, reserva.fecha_fin, db, reserva.id)
         if not disponible:
             raise HTTPException(409, "El espacio ya fue tomado por otra reserva. Se requiere reembolso.")
-        print(f"[RESERVAS] 🔄 Recuperando reserva cancelada #{reserva.id} tras cobro tardío exitoso...")
+        logger.info("Recuperando reserva cancelada tras cobro tardío exitoso", extra={"reserva_id": reserva.id})
 
     elif reserva.estado not in (EstadoReserva.pendiente, EstadoReserva.fallida):
         raise HTTPException(
@@ -473,7 +543,7 @@ async def confirmar_reserva_tras_pago(
                 headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
             )
         except httpx.RequestError as exc:
-            print(f"[RESERVAS] ⚠️ Reserva #{reserva_id} confirmada pero error al marcar espacio como reservado: {str(exc)}")
+            logger.warning("Reserva confirmada pero error al marcar espacio como reservado", extra={"reserva_id": reserva_id, "error": str(exc)})
 
     return {"ok": True, "estado": "confirmada", "reserva_id": reserva_id}
 
