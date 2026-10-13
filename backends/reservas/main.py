@@ -96,6 +96,11 @@ app.add_middleware(
 app.include_router(reservas_router)
 
 @app.get("/")
+def read_root():
+    return {"status": "ok", "service": "reservas"}
+
+@app.get("/health")
 def health_check():
     return {"status": "ok", "service": "reservas"}
+
 

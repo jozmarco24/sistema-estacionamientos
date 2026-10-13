@@ -64,5 +64,10 @@ app.include_router(pagos_router)
 app.include_router(credenciales_router)
 
 @app.get("/")
-def health_check():
+def read_root():
     return {"status": "ok", "service": "pagos", "modo": "prueba_culqi"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "pagos"}
+

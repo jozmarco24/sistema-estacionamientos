@@ -49,5 +49,10 @@ app.include_router(espacios_router)
 app.include_router(incidencias_router)
 
 @app.get("/")
+def read_root():
+    return {"status": "ok", "service": "estacionamientos"}
+
+@app.get("/health")
 def health_check():
     return {"status": "ok", "service": "estacionamientos"}
+

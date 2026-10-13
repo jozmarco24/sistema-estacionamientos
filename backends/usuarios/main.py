@@ -69,5 +69,10 @@ app.add_middleware(
 app.include_router(usuarios_router)
 
 @app.get("/")
+def read_root():
+    return {"status": "ok", "service": "usuarios"}
+
+@app.get("/health")
 def health_check():
     return {"status": "ok", "service": "usuarios"}
+

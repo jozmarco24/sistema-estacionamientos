@@ -44,6 +44,12 @@ services:
         condition: service_healthy
     networks:
       - estacionamientos_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   estacionamientos:
     build: ./backends/estacionamientos
@@ -65,6 +71,12 @@ services:
         condition: service_healthy
     networks:
       - estacionamientos_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   reservas:
     build: ./backends/reservas
@@ -86,11 +98,17 @@ services:
       db:
         condition: service_healthy
       estacionamientos:
-        condition: service_started
+        condition: service_healthy
       pagos:
-        condition: service_started
+        condition: service_healthy
     networks:
       - estacionamientos_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   pagos:
     build: ./backends/pagos
@@ -116,6 +134,12 @@ services:
         condition: service_healthy
     networks:
       - estacionamientos_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build: ./frontend
@@ -126,10 +150,14 @@ services:
     environment:
       - TZ=America/Lima
     depends_on:
-      - usuarios
-      - estacionamientos
-      - reservas
-      - pagos
+      usuarios:
+        condition: service_healthy
+      estacionamientos:
+        condition: service_healthy
+      reservas:
+        condition: service_healthy
+      pagos:
+        condition: service_healthy
     networks:
       - estacionamientos_net
 
