@@ -1,3 +1,4 @@
+// frontend-vue/src/services/api.js
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
@@ -28,10 +29,10 @@ api.interceptors.response.use(
 )
 
 export const URLS = {
-  usuarios:        'http://localhost:8001',
-  estacionamientos:'http://localhost:8002',
-  reservas:        'http://localhost:8003',
-  pagos:           'http://localhost:8004',
+  usuarios:         import.meta.env.VITE_API_USUARIOS         || 'http://localhost:8001',
+  estacionamientos: import.meta.env.VITE_API_ESTACIONAMIENTOS || 'http://localhost:8002',
+  reservas:         import.meta.env.VITE_API_RESERVAS         || 'http://localhost:8003',
+  pagos:            import.meta.env.VITE_API_PAGOS            || 'http://localhost:8004',
 }
 
 export default api
