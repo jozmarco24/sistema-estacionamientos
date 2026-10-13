@@ -21,10 +21,13 @@ async def lifespan(app: FastAPI):
     try:
         admin_exists = db.query(Usuario).filter(Usuario.rol == RolUsuario.admin).first()
         if not admin_exists:
+            admin_pwd = os.getenv("ADMIN_PASSWORD")
+            if not admin_pwd:
+                raise RuntimeError("ADMIN_PASSWORD no está definida en las variables de entorno.")
             default_admin = Usuario(
                 nombre=os.getenv("ADMIN_NOMBRE", "Admin Global"),
                 email=os.getenv("ADMIN_EMAIL", "admin@smartpark.com"),
-                password_hash=hash_password(os.getenv("ADMIN_PASSWORD", "admin123")),
+                password_hash=hash_password(admin_pwd),
                 rol=RolUsuario.admin,
                 activo=True
             )

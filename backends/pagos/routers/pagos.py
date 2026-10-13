@@ -20,6 +20,14 @@ from auth import (
 )
 from crypto import encrypt_secret_key, decrypt_secret_key
 
+PLATAFORMA_CULQI_PUBLIC = os.getenv("CULQI_PUBLIC_KEY", "")
+PLATAFORMA_CULQI_SECRET = os.getenv("CULQI_SECRET_KEY", "")
+INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
+RESERVAS_SERVICE_URL = os.getenv("RESERVAS_SERVICE_URL", "http://reservas:8003")
+USUARIOS_SERVICE_URL = os.getenv("USUARIOS_SERVICE_URL", "http://usuarios:8001")
+
+
+
 router = APIRouter(prefix="/pagos", tags=["pagos"])
 
 async def confirmar_reserva_con_reintentos(reserva_id: int) -> bool:
@@ -32,11 +40,11 @@ async def confirmar_reserva_con_reintentos(reserva_id: int) -> bool:
                     headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
                 )
                 if resp.status_code in (200, 204):
-                    print(f"[PAGOS] âœ… Reserva #{reserva_id} confirmada exitosamente en intento {attempt}.")
+                    print(f"[PAGOS] ✅ Reserva #{reserva_id} confirmada exitosamente en intento {attempt}.")
                     return True
-                print(f"[PAGOS] âš ï¸ Intento {attempt}/3 fallÃ³ al confirmar reserva #{reserva_id}. Status: {resp.status_code}")
+                print(f"[PAGOS] ⚠️ Intento {attempt}/3 falló al confirmar reserva #{reserva_id}. Status: {resp.status_code}")
         except httpx.RequestError as exc:
-            print(f"[PAGOS] âš ï¸ Intento {attempt}/3 error de red al confirmar reserva #{reserva_id}: {exc}")
+            print(f"[PAGOS] ⚠️ Intento {attempt}/3 error de red al confirmar reserva #{reserva_id}: {exc}")
         
         if attempt < len(delays):
             await asyncio.sleep(delay)
@@ -49,11 +57,6 @@ def listar_pagos_pendientes_revision(
     _admin: CurrentUser = Depends(require_admin)
 ):
     return db.query(Pago).filter(Pago.estado == EstadoPago.pagado_sin_confirmar).order_by(Pago.id.desc()).all()
-PLATAFORMA_CULQI_PUBLIC = os.getenv("CULQI_PUBLIC_KEY", "")
-PLATAFORMA_CULQI_SECRET = os.getenv("CULQI_SECRET_KEY", "")
-INTERNAL_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY", "")
-RESERVAS_SERVICE_URL = os.getenv("RESERVAS_SERVICE_URL", "http://reservas:8003")
-USUARIOS_SERVICE_URL = os.getenv("USUARIOS_SERVICE_URL", "http://usuarios:8001")
 
 # 1. Crear orden de pago (Solo llamada interna desde reservas o usuarios)
 @router.post("/", response_model=PagoResponse, status_code=status.HTTP_201_CREATED)

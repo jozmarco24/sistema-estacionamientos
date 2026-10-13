@@ -31,13 +31,13 @@ def crear_espacio(espacio_in: EspacioCreate, db: Session = Depends(get_db), curr
     return nuevo_espacio
 
 @router.get("/", response_model=List[EspacioResponse])
-def listar_todos_los_espacios(db: Session = Depends(get_db)):
-    return db.query(Espacio).all()
+def listar_todos_los_espacios(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(Espacio).offset(skip).limit(limit).all()
 
 @router.get("/sede/{sede_id}", response_model=List[EspacioResponse])
-def listar_espacios_por_sede(sede_id: int, db: Session = Depends(get_db)):
+def listar_espacios_por_sede(sede_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Público para conductores que buscan espacio
-    return db.query(Espacio).filter(Espacio.sede_id == sede_id).all()
+    return db.query(Espacio).filter(Espacio.sede_id == sede_id).offset(skip).limit(limit).all()
 
 @router.get("/{espacio_id}")
 def obtener_espacio_detalle(espacio_id: int, db: Session = Depends(get_db)):
