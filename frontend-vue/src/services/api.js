@@ -1,9 +1,8 @@
-import axios from 'axios'
+﻿import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 const api = axios.create()
 
-// Interceptor request: agregar Authorization: Bearer {token}
 api.interceptors.request.use(config => {
   const auth = useAuthStore()
   if (auth.token) {
@@ -12,7 +11,6 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Interceptor response: si 401 → logout y redirigir a /login
 api.interceptors.response.use(
   r => r,
   err => {
