@@ -66,8 +66,13 @@ async def lifespan(app: FastAPI):
         conn.execute(text(f"""
             ALTER TABLE {SCHEMA_NAME}.reservas ADD COLUMN IF NOT EXISTS creado_en TIMESTAMP DEFAULT NOW();
             ALTER TABLE {SCHEMA_NAME}.reservas ADD COLUMN IF NOT EXISTS expira_en TIMESTAMP;
+            ALTER TABLE {SCHEMA_NAME}.reservas ADD COLUMN IF NOT EXISTS monto_cobrado FLOAT DEFAULT 0.0;
             DO $$ BEGIN
                 ALTER TYPE {SCHEMA_NAME}.estadoreserva ADD VALUE IF NOT EXISTS 'en_curso';
+            EXCEPTION WHEN duplicate_object THEN null;
+            END $$;
+            DO $$ BEGIN
+                ALTER TYPE {SCHEMA_NAME}.estadoreserva ADD VALUE IF NOT EXISTS 'completada';
             EXCEPTION WHEN duplicate_object THEN null;
             END $$;
             DO $$ BEGIN
@@ -96,14 +101,16 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080").split(",")
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:8080,http://localhost:8081,http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
+if "*" not in ALLOWED_ORIGINS and not os.getenv("ALLOWED_ORIGINS"):
+    ALLOWED_ORIGINS.extend(["http://localhost:8081", "http://localhost:8080"])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS if "*" not in ALLOWED_ORIGINS else ["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Internal-Key"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(reservas_router)

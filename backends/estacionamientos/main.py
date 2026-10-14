@@ -46,14 +46,16 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080").split(",")
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:8080,http://localhost:8081,http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
+if "*" not in ALLOWED_ORIGINS and not os.getenv("ALLOWED_ORIGINS"):
+    ALLOWED_ORIGINS.extend(["http://localhost:8081", "http://localhost:8080"])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS if "*" not in ALLOWED_ORIGINS else ["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Internal-Key"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(sedes_router)

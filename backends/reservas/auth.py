@@ -48,8 +48,17 @@ def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> Curr
     return current_user
 
 def require_conductor(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-    if current_user.rol not in ["conductor", "admin"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado: se requiere cuenta de conductor")
+    if current_user.rol not in ["conductor", "admin", "operador"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado: se requiere cuenta autorizada")
+    return current_user
+
+def require_operador_or_above(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    roles_permitidos = ["admin", "propietario", "operador"]
+    if current_user.rol not in roles_permitidos:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol de operador o superior"
+        )
     return current_user
 
 def verify_internal_key(x_internal_key: Optional[str] = Header(None, alias="X-Internal-Key")):

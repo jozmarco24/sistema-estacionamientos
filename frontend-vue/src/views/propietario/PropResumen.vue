@@ -17,6 +17,7 @@
       </div>
     </div>
 
+    <!-- Cards de Conteo -->
     <div class="stats-row">
       <div class="stat-box libre">
         <span class="stat-label">Espacios Libres</span>
@@ -36,7 +37,7 @@
       </div>
     </div>
 
-    <!-- Fila 1: Cobertura en Mapa y Buzón de Incidencias -->
+    <!-- Mapa de Cobertura + Buzón de Incidencias -->
     <div class="two-cols" style="margin-bottom: 24px;">
       <!-- Cobertura en Mapa -->
       <div class="card">
@@ -63,7 +64,7 @@
           </div>
           <span class="status-badge ocupado">{{ incidenciasList.length }} incidencias</span>
         </div>
-        <div style="max-height: 280px; overflow-y: auto;">
+        <div style="max-height: 380px; overflow-y: auto;">
           <div v-for="inc in incidenciasList" :key="inc.id" class="incidencia-row">
             <div>
               <div style="font-weight: 600; font-size:0.9rem;">Sede: {{ getSedeNombre(inc.sede_id) }}</div>
@@ -81,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import L from 'leaflet'
 
 const props = defineProps({
@@ -89,6 +90,23 @@ const props = defineProps({
   stats: { type: Object, required: true },
   incidenciasList: { type: Array, default: () => [] }
 })
+
+const tabResumen = ref('metricas')
+
+function cambiarTab(tab) {
+  tabResumen.value = tab
+  if (tab === 'mapa_incidencias') {
+    nextTick(() => {
+      initOwnerMap()
+      setTimeout(() => {
+        if (ownerMap) {
+          ownerMap.invalidateSize()
+          recenterOwnerMap()
+        }
+      }, 150)
+    })
+  }
+}
 
 let ownerMap = null
 let ownerMarkersLayer = null

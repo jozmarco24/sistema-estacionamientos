@@ -1,8 +1,29 @@
 <template>
   <div class="section-view active-section">
-    <div class="two-cols">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <!-- TABS INTERNOS -->
+    <div class="inner-tabs">
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabPersonal === 'directorio' }"
+        @click="tabPersonal = 'directorio'"
+      >
+        <i class="fa-solid fa-address-book"></i> Directorio
+      </button>
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabPersonal === 'contratar' }"
+        @click="tabPersonal = 'contratar'"
+      >
+        <i class="fa-solid fa-user-plus"></i> Contratar
+      </button>
+    </div>
+
+    <!-- TAB: DIRECTORIO -->
+    <div v-show="tabPersonal === 'directorio'">
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
           <div>
             <h2 class="card-title" style="margin-bottom:2px;"><i class="fa-solid fa-users-gear"></i> Directorio de Operadores</h2>
             <p style="font-size:0.8rem; color:var(--text-muted);">Personal autorizado para operar las casetas y escanear QR.</p>
@@ -53,9 +74,11 @@
           </table>
         </div>
       </div>
+    </div>
 
-      <!-- Form Registrar Operador -->
-      <div class="card">
+    <!-- TAB: CONTRATAR -->
+    <div v-show="tabPersonal === 'contratar'">
+      <div class="card" style="max-width: 600px; margin-bottom: 24px;">
         <h2 class="card-title"><i class="fa-solid fa-user-plus"></i> Contratar / Asignar Operador</h2>
         <form @submit.prevent="handleCreateOperador">
           <div class="form-group">
@@ -85,7 +108,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { ref, reactive } from 'vue'
 import { usuariosService } from '@/services/usuarios'
 
 const props = defineProps({
@@ -94,6 +117,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['refresh', 'toast'])
+
+const tabPersonal = ref('directorio')
 
 const formOperador = reactive({
   nombre: '',

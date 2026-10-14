@@ -429,6 +429,44 @@ onUnmounted(() => {
   --text-muted: #64748b;
 }
 
+/* ===== INNER TABS ===== */
+:deep(.inner-tabs) {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--glass-border);
+  padding-bottom: 0;
+  flex-wrap: wrap;
+}
+
+:deep(.inner-tab-btn) {
+  padding: 8px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:deep(.inner-tab-btn:hover) {
+  color: var(--text-main);
+  background: var(--glass-bg);
+}
+
+:deep(.inner-tab-btn.active) {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--glass-bg);
+}
+
 /* Sidebar */
 .sidebar {
   width: 280px;

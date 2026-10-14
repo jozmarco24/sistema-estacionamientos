@@ -1,168 +1,204 @@
 <template>
   <div class="section-view active-section">
-    <!-- Configurar Cobros (Culqi) Form Card -->
-    <div class="card" style="max-width: 720px; border: 1px solid rgba(14, 165, 233, 0.35); background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(2, 132, 199, 0.02) 100%); margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 class="card-title" style="margin-bottom: 0; color: var(--accent); font-size: 1.25rem;">
-              <i class="fa-solid fa-key"></i> Mis Credenciales Culqi
-            </h2>
-            <span class="status-badge" :class="cobrosState.verificada ? 'libre' : (cobrosState.configurada ? 'reservado' : 'ocupado')">
-              {{ cobrosState.verificada ? '✅ Verificada' : (cobrosState.configurada ? '⚠️ Sin verificar' : '❌ No configurada') }}
-            </span>
+    <!-- TABS INTERNOS -->
+    <div class="inner-tabs">
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabFinanzas === 'ingresos' }"
+        @click="cambiarTab('ingresos')"
+      >
+        <i class="fa-solid fa-chart-line"></i> Ingresos
+      </button>
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabFinanzas === 'credenciales' }"
+        @click="cambiarTab('credenciales')"
+      >
+        <i class="fa-solid fa-key"></i> Credenciales Culqi
+      </button>
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabFinanzas === 'historial' }"
+        @click="cambiarTab('historial')"
+      >
+        <i class="fa-solid fa-receipt"></i> Historial
+      </button>
+    </div>
+
+    <!-- TAB: INGRESOS (Gráfica de Finanzas) -->
+    <div v-show="tabFinanzas === 'ingresos'">
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 class="card-title" style="margin-bottom:2px;"><i class="fa-solid fa-chart-line"></i> Ingresos Recaudados</h2>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Evolución de cobros por sede o consolidado.</p>
           </div>
-          <p style="font-size: 0.84rem; color: var(--text-muted); margin: 6px 0 0 0;">
-            Configura tus credenciales para recibir pagos directos de conductores por cada reserva.
-          </p>
+          <select
+            v-model="filtroFinanzasSede"
+            @change="onFiltroChange"
+            style="padding:6px 12px; border-radius:8px; background:var(--glass-bg); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.85rem; font-weight:600;"
+          >
+            <option value="">Todas mis sedes (Consolidado)</option>
+            <option v-for="s in misSedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+          </select>
+        </div>
+        <div style="position: relative; width: 100%; min-height: 250px;">
+          <canvas id="revenueChartPropietario" height="140"></canvas>
+        </div>
+        <div class="revenue-summary-pill">
+          <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-sack-dollar" style="color:#10b981;"></i> Total Recaudado (Periodo)
+          </span>
+          <span style="font-size: 1.4rem; font-weight: 800; color: #10b981;">
+            S/. {{ totalGanancia.toFixed(2) }}
+          </span>
         </div>
       </div>
+    </div>
 
-      <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
-        <div class="form-group" style="margin-bottom: 0;">
-          <label><i class="fa-solid fa-key" style="color: var(--accent);"></i> Public Key:</label>
-          <input v-model="cobrosForm.publicKey" type="text" placeholder="pk_test_xxxxxxxxxxxxxxxx" style="font-family: monospace;">
+    <!-- TAB: CREDENCIALES (Configurar Cobros Culqi) -->
+    <div v-show="tabFinanzas === 'credenciales'">
+      <div class="card" style="max-width: 720px; border: 1px solid rgba(14, 165, 233, 0.35); background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(2, 132, 199, 0.02) 100%); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h2 class="card-title" style="margin-bottom: 0; color: var(--accent); font-size: 1.25rem;">
+                <i class="fa-solid fa-key"></i> Mis Credenciales Culqi
+              </h2>
+              <span class="status-badge" :class="cobrosState.verificada ? 'libre' : (cobrosState.configurada ? 'reservado' : 'ocupado')">
+                {{ cobrosState.verificada ? '✅ Verificada' : (cobrosState.configurada ? '⚠️ Sin verificar' : '❌ No configurada') }}
+              </span>
+            </div>
+            <p style="font-size: 0.84rem; color: var(--text-muted); margin: 6px 0 0 0;">
+              Configura tus credenciales para recibir pagos directos de conductores por cada reserva.
+            </p>
+          </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 0;">
-          <label><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Secret Key:</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input
-              v-model="cobrosForm.secretKey"
-              :type="showSecretKey ? 'text' : 'password'"
-              placeholder="••••••••"
-              style="font-family: monospace; width: 100%; padding-right: 45px;"
-            >
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label><i class="fa-solid fa-key" style="color: var(--accent);"></i> Public Key:</label>
+            <input v-model="cobrosForm.publicKey" type="text" placeholder="pk_test_xxxxxxxxxxxxxxxx" style="font-family: monospace;">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Secret Key:</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input
+                v-model="cobrosForm.secretKey"
+                :type="showSecretKey ? 'text' : 'password'"
+                placeholder="••••••••"
+                style="font-family: monospace; width: 100%; padding-right: 45px;"
+              >
+              <button
+                type="button"
+                @click="showSecretKey = !showSecretKey"
+                style="position: absolute; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.15rem;"
+              >
+                {{ showSecretKey ? '🙈' : '👁️' }}
+              </button>
+            </div>
+            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">
+              <i class="fa-solid fa-shield-halved" style="color: var(--accent);"></i> La secret_key se cifra con Fernet antes de guardarse y nunca viaja de vuelta al navegador.
+            </small>
+          </div>
+
+          <div v-if="cobrosAlert.show" class="alert-inline" :class="cobrosAlert.success ? 'alert-success' : 'alert-danger'">
+            <i :class="cobrosAlert.success ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+            <span>{{ cobrosAlert.msg }}</span>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap;">
             <button
-              type="button"
-              @click="showSecretKey = !showSecretKey"
-              style="position: absolute; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.15rem;"
+              @click="guardarCredencialesCobros"
+              :disabled="isSavingCobros"
+              class="btn-action"
+              style="background: var(--primary); color: #fff; font-weight: 700; padding: 10px 22px; border-radius: 10px; border: none;"
             >
-              {{ showSecretKey ? '🙈' : '👁️' }}
+              <i class="fa-solid" :class="isSavingCobros ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i> Guardar Credenciales
+            </button>
+            <button
+              @click="probarConexionCobros"
+              :disabled="isTestingCobros"
+              class="btn-action"
+              style="padding: 10px 20px; font-weight: 700; border-radius: 10px;"
+            >
+              <i class="fa-solid" :class="isTestingCobros ? 'fa-spinner fa-spin' : 'fa-bolt'"></i>
+              <span>{{ isTestingCobros ? 'Verificando...' : 'Probar Conexión' }}</span>
             </button>
           </div>
-          <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">
-            <i class="fa-solid fa-shield-halved" style="color: var(--accent);"></i> La secret_key se cifra con Fernet antes de guardarse y nunca viaja de vuelta al navegador.
-          </small>
-        </div>
-
-        <div v-if="cobrosAlert.show" class="alert-inline" :class="cobrosAlert.success ? 'alert-success' : 'alert-danger'">
-          <i :class="cobrosAlert.success ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
-          <span>{{ cobrosAlert.msg }}</span>
-        </div>
-
-        <div style="display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap;">
-          <button
-            @click="guardarCredencialesCobros"
-            :disabled="isSavingCobros"
-            class="btn-action"
-            style="background: var(--primary); color: #fff; font-weight: 700; padding: 10px 22px; border-radius: 10px; border: none;"
-          >
-            <i class="fa-solid" :class="isSavingCobros ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i> Guardar Credenciales
-          </button>
-          <button
-            @click="probarConexionCobros"
-            :disabled="isTestingCobros"
-            class="btn-action"
-            style="padding: 10px 20px; font-weight: 700; border-radius: 10px;"
-          >
-            <i class="fa-solid" :class="isTestingCobros ? 'fa-spinner fa-spin' : 'fa-bolt'"></i>
-            <span>{{ isTestingCobros ? 'Verificando...' : 'Probar Conexión' }}</span>
-          </button>
         </div>
       </div>
     </div>
 
-    <!-- Gráfica de Finanzas -->
-    <div class="card" style="margin-bottom: 24px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <div>
-          <h2 class="card-title" style="margin-bottom:2px;"><i class="fa-solid fa-chart-line"></i> Ingresos Recaudados</h2>
-          <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Evolución de cobros por sede o consolidado.</p>
+    <!-- TAB: HISTORIAL (Historial de Pagos Recibidos) -->
+    <div v-show="tabFinanzas === 'historial'">
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <div>
+            <h2 class="card-title" style="margin-bottom: 2px;">
+              <i class="fa-solid fa-money-bill-transfer" style="color: var(--accent);"></i> Historial de Cobros Recibidos
+            </h2>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">
+              Supervisa los pagos de reservas online y los cobros manuales (Walk-in) realizados en caseta física.
+            </p>
+          </div>
+          <span class="status-badge libre">{{ pagosRecibidosList.length }} transacciones</span>
         </div>
-        <select
-          v-model="filtroFinanzasSede"
-          @change="onFiltroChange"
-          style="padding:6px 12px; border-radius:8px; background:var(--glass-bg); color:var(--text-main); border:1px solid var(--glass-border); font-size:0.85rem; font-weight:600;"
-        >
-          <option value="">Todas mis sedes (Consolidado)</option>
-          <option v-for="s in misSedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
-        </select>
-      </div>
-      <canvas id="revenueChartPropietario" height="140"></canvas>
-      <div class="revenue-summary-pill">
-        <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-          <i class="fa-solid fa-sack-dollar" style="color:#10b981;"></i> Total Recaudado (Periodo)
-        </span>
-        <span style="font-size: 1.4rem; font-weight: 800; color: #10b981;">
-          S/. {{ totalGanancia.toFixed(2) }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Historial de Pagos Recibidos -->
-    <div class="card" style="margin-bottom: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <div>
-          <h2 class="card-title" style="margin-bottom: 2px;">
-            <i class="fa-solid fa-money-bill-transfer" style="color: var(--accent);"></i> Historial de Cobros Recibidos
-          </h2>
-          <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">
-            Supervisa los pagos de reservas online y los cobros manuales (Walk-in) realizados en caseta física.
-          </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID Pago</th>
+                <th>Fecha & Hora</th>
+                <th>Sede</th>
+                <th>Tipo de Operación</th>
+                <th>Monto Recibido</th>
+                <th>Canal / Cuenta Destino</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in pagosRecibidosList" :key="p.id">
+                <td style="font-weight: 700; color: var(--primary);">#{{ p.id }}</td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">{{ formatearFecha(p.fecha_pago || p.fecha_creacion) }}</td>
+                <td><strong><i class="fa-solid fa-warehouse" style="font-size:0.8rem; margin-right:4px;"></i>{{ getSedeNombre(p.sede_id) }}</strong></td>
+                <td>
+                  <span v-if="p.metodo_pago === 'efectivo' || !p.reserva_id" style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.78rem;">
+                    <i class="fa-solid fa-hand-holding-dollar"></i> Manual (Caseta)
+                  </span>
+                  <span v-else style="background:rgba(6,182,212,0.15); color:var(--accent); padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.78rem;">
+                    <i class="fa-solid fa-mobile-screen-button"></i> Reserva Online
+                  </span>
+                </td>
+                <td style="font-weight: 800; color: #10b981; font-size: 1rem;">S/. {{ Number(p.monto).toFixed(2) }}</td>
+                <td>
+                  <span v-if="p.metodo_pago === 'efectivo' || !p.reserva_id" style="color:var(--text-muted); font-size:0.83rem;">
+                    <i class="fa-solid fa-money-bill-wave" style="color:#10b981;"></i> Caja física del Operador
+                  </span>
+                  <span v-else style="font-size:0.83rem; color:var(--text-main);">
+                    <i class="fa-solid fa-building-columns" style="color:var(--accent);"></i> {{ p.cuenta_destino || 'Cuenta Bancaria Registrada' }}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    class="status-badge"
+                    :class="(p.estado === 'completado' || p.estado === 'pagado' || p.estado === 'aprobado') ? 'libre' : (p.estado === 'pendiente' ? 'reservado' : 'ocupado')"
+                    style="text-transform: capitalize;"
+                  >
+                    {{ p.estado }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="pagosRecibidosList.length === 0">
+                <td colspan="7" style="text-align: center; color: var(--text-muted);">No hay transacciones registradas.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <span class="status-badge libre">{{ pagosRecibidosList.length }} transacciones</span>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>ID Pago</th>
-              <th>Fecha & Hora</th>
-              <th>Sede</th>
-              <th>Tipo de Operación</th>
-              <th>Monto Recibido</th>
-              <th>Canal / Cuenta Destino</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in pagosRecibidosList" :key="p.id">
-              <td style="font-weight: 700; color: var(--primary);">#{{ p.id }}</td>
-              <td style="font-size: 0.85rem; color: var(--text-muted);">{{ formatearFecha(p.fecha_pago || p.fecha_creacion) }}</td>
-              <td><strong><i class="fa-solid fa-warehouse" style="font-size:0.8rem; margin-right:4px;"></i>{{ getSedeNombre(p.sede_id) }}</strong></td>
-              <td>
-                <span v-if="p.metodo_pago === 'efectivo' || !p.reserva_id" style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.78rem;">
-                  <i class="fa-solid fa-hand-holding-dollar"></i> Manual (Caseta)
-                </span>
-                <span v-else style="background:rgba(6,182,212,0.15); color:var(--accent); padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.78rem;">
-                  <i class="fa-solid fa-mobile-screen-button"></i> Reserva Online
-                </span>
-              </td>
-              <td style="font-weight: 800; color: #10b981; font-size: 1rem;">S/. {{ Number(p.monto).toFixed(2) }}</td>
-              <td>
-                <span v-if="p.metodo_pago === 'efectivo' || !p.reserva_id" style="color:var(--text-muted); font-size:0.83rem;">
-                  <i class="fa-solid fa-money-bill-wave" style="color:#10b981;"></i> Caja física del Operador
-                </span>
-                <span v-else style="font-size:0.83rem; color:var(--text-main);">
-                  <i class="fa-solid fa-building-columns" style="color:var(--accent);"></i> {{ p.cuenta_destino || 'Cuenta Bancaria Registrada' }}
-                </span>
-              </td>
-              <td>
-                <span
-                  class="status-badge"
-                  :class="(p.estado === 'completado' || p.estado === 'pagado' || p.estado === 'aprobado') ? 'libre' : (p.estado === 'pendiente' ? 'reservado' : 'ocupado')"
-                  style="text-transform: capitalize;"
-                >
-                  {{ p.estado }}
-                </span>
-              </td>
-            </tr>
-            <tr v-if="pagosRecibidosList.length === 0">
-              <td colspan="7" style="text-align: center; color: var(--text-muted);">No hay transacciones registradas.</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -180,6 +216,17 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['filtro-sede-change', 'toast', 'refresh'])
+
+const tabFinanzas = ref('ingresos')
+
+function cambiarTab(tab) {
+  tabFinanzas.value = tab
+  if (tab === 'ingresos') {
+    nextTick(() => {
+      renderChart()
+    })
+  }
+}
 
 const filtroFinanzasSede = ref('')
 const showSecretKey = ref(false)

@@ -9,7 +9,7 @@ from database import get_db
 from models import Reserva, EstadoReserva
 from schemas import ReservaCreate, ReservaResponse, CancelarReservaResponse, CotizacionResponse
 from auth import (
-    get_current_user, require_admin, require_conductor,
+    get_current_user, require_admin, require_conductor, require_operador_or_above,
     verify_internal_key, CurrentUser
 )
 from time_utils import utc_now, to_utc, es_horario_diurno, get_hora_lima
@@ -76,6 +76,8 @@ async def llamar_servicio_externo(method: str, url: str, headers: dict, json: di
 
 # Función de cálculo de monto en el servidor
 async def calcular_monto_servidor(espacio_id: int, inicio: datetime, fin: datetime, validar_culqi: bool = True):
+    inicio = to_utc(inicio)
+    fin = to_utc(fin)
     if fin <= inicio:
         raise HTTPException(status_code=400, detail="La fecha de fin debe ser posterior a la de inicio.")
     
@@ -161,7 +163,6 @@ async def cotizar_reserva(
         es_diurno=calc["es_diurno"]
     )
 
-# Crear Reserva (Conductor logueado)
 @router.post("/", response_model=ReservaResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def crear_reserva(
@@ -572,3 +573,197 @@ async def fallar_reserva_tras_pago(
     await liberar_espacio_remoto(reserva.espacio_id)
 
     return {"ok": True, "estado": "fallida", "reserva_id": reserva_id}
+
+
+# ─────────────────────────────────────────────
+# Fix A — Limpiar reservas pendientes expiradas y liberar sus espacios
+# ─────────────────────────────────────────────
+@router.post("/limpiar-expiradas", tags=["reservas"])
+async def limpiar_reservas_expiradas(
+    db: Session = Depends(get_db),
+    _internal: bool = Depends(verify_internal_key)
+):
+    """Limpia reservas pendientes expiradas y libera sus espacios"""
+    ahora = utc_now()
+    expiradas = db.query(Reserva).filter(
+        Reserva.estado == EstadoReserva.pendiente,
+        Reserva.expira_en < ahora
+    ).all()
+
+    liberados = 0
+    for reserva in expiradas:
+        reserva.estado = EstadoReserva.cancelada
+        try:
+            await liberar_espacio_remoto(reserva.espacio_id)
+            liberados += 1
+        except Exception as e:
+            logger.error(f"Error liberando espacio {reserva.espacio_id}: {e}")
+
+    db.commit()
+    return {"reservas_canceladas": len(expiradas), "espacios_liberados": liberados}
+
+
+# ─────────────────────────────────────────────
+# Fix B — Liberación manual de reserva por operador
+# ─────────────────────────────────────────────
+@router.post("/{reserva_id}/liberar-manual", tags=["reservas"])
+async def liberar_reserva_manual(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_operador_or_above)
+):
+    """Permite al operador liberar manualmente una reserva bloqueada/expirada"""
+    reserva = db.query(Reserva).filter(Reserva.id == reserva_id).first()
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+
+    estados_liberables = [
+        EstadoReserva.pendiente,
+        EstadoReserva.confirmada,
+        EstadoReserva.en_curso
+    ]
+    if reserva.estado not in estados_liberables:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede liberar una reserva en estado '{reserva.estado.value}'"
+        )
+
+    reserva.estado = EstadoReserva.cancelada
+    db.commit()
+    await liberar_espacio_remoto(reserva.espacio_id)
+    return {"mensaje": "Reserva cancelada y espacio liberado", "reserva_id": reserva_id}
+
+
+# ─────────────────────────────────────────────
+# Fix C — Endpoint Walk-in exclusivo para operador (sin pago previo)
+# ─────────────────────────────────────────────
+@router.post("/walkin", response_model=ReservaResponse, status_code=status.HTTP_201_CREATED, tags=["reservas"])
+async def ingreso_walkin_operador(
+    reserva_in: ReservaCreate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_operador_or_above)
+):
+    """Ingreso rápido Walk-in sin reserva previa — exclusivo para operador"""
+    ahora_utc = utc_now()
+    f_inicio = ahora_utc
+    # Walk-in: fin estimado en 2 horas por defecto
+    f_fin = ahora_utc + timedelta(hours=2)
+
+    # Bloquear / ocupar espacio atómicamente
+    url_ocupar = f"{ESTACIONAMIENTOS_SERVICE_URL}/espacios/{reserva_in.espacio_id}/ocupar"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.put(
+                url_ocupar,
+                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+            )
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=503, detail=f"Error conectando con estacionamientos: {str(exc)}")
+
+        if resp.status_code not in [200, 204]:
+            raise HTTPException(status_code=409, detail="El espacio no está disponible.")
+
+    # Calcular tarifa sin validar Culqi (pago presencial en efectivo/caseta)
+    await calcular_monto_servidor(
+        reserva_in.espacio_id, f_inicio, f_fin, validar_culqi=False
+    )
+
+    nueva_reserva = Reserva(
+        usuario_id=current_user.id,
+        espacio_id=reserva_in.espacio_id,
+        fecha_inicio=f_inicio,
+        fecha_fin=f_fin,
+        estado=EstadoReserva.en_curso,   # ← directo a en_curso, sin pago previo
+        placa_vehiculo=reserva_in.placa_vehiculo.strip().upper(),
+        creado_en=ahora_utc,
+        expira_en=None,                  # ← sin expiración, es presencial
+        monto_cobrado=0.0
+    )
+
+    try:
+        db.add(nueva_reserva)
+        db.commit()
+        db.refresh(nueva_reserva)
+    except Exception as exc:
+        db.rollback()
+        await liberar_espacio_remoto(reserva_in.espacio_id)
+        raise HTTPException(status_code=500, detail=f"Error al registrar ingreso: {str(exc)}")
+
+    return nueva_reserva
+
+
+# ─────────────────────────────────────────────
+# Fix — Cobro en caseta presencial y liberación de cajón
+# ─────────────────────────────────────────────
+@router.post("/{reserva_id}/cobrar-caseta", tags=["reservas"])
+async def cobrar_en_caseta(
+    reserva_id: int,
+    metodo_pago: str = "efectivo",
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_operador_or_above)
+):
+    """Registra el cobro presencial y libera el cajón"""
+    reserva = db.query(Reserva).filter(Reserva.id == reserva_id).first()
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+
+    ahora = utc_now()
+    inicio_utc = to_utc(reserva.fecha_inicio)
+
+    # Calcular tiempo real de permanencia
+    tiempo_real_horas = max(
+        1.0,
+        (ahora - inicio_utc).total_seconds() / 3600.0
+    )
+
+    # Recalcular monto con tiempo real
+    calc = await calcular_monto_servidor(
+        reserva.espacio_id,
+        inicio_utc,
+        ahora,
+        validar_culqi=False
+    )
+    monto_final = calc["monto"]
+
+    # Actualizar reserva a completada (o finalizada)
+    reserva.estado = EstadoReserva.completada
+    reserva.fecha_fin = ahora
+    reserva.monto_cobrado = monto_final
+
+    try:
+        db.commit()
+        db.refresh(reserva)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Liberar espacio
+    await liberar_espacio_remoto(reserva.espacio_id)
+
+    # Notificar al servicio de pagos
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            await client.post(
+                f"{PAGOS_SERVICE_URL}/pagos/",
+                json={
+                    "tipo": "walkin",
+                    "reserva_id": reserva.id,
+                    "pagador_id": reserva.usuario_id,
+                    "receptor_id": calc.get("propietario_id"),
+                    "sede_id": calc.get("sede_id"),
+                    "monto": monto_final,
+                    "metodo_pago": metodo_pago,
+                    "estado": "completado"
+                },
+                headers={"X-Internal-Key": INTERNAL_SERVICE_KEY}
+            )
+        except Exception as e:
+            logger.warning(f"Error registrando pago en caja: {e}")
+
+    return {
+        "mensaje": "Cobro registrado y cajón liberado",
+        "reserva_id": reserva_id,
+        "monto_cobrado": monto_final,
+        "tiempo_horas": round(tiempo_real_horas, 2),
+        "metodo_pago": metodo_pago
+    }

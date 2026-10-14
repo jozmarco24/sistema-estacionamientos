@@ -24,17 +24,22 @@ def crear_incidencia(
     if not sede:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sede no encontrada")
     
-    fecha_actual = datetime.now().isoformat()
-    db_incidencia = Incidencia(
-        sede_id=incidencia.sede_id,
-        operador_id=current_user.id,
-        descripcion=incidencia.descripcion,
-        fecha_reporte=fecha_actual
-    )
-    db.add(db_incidencia)
-    db.commit()
-    db.refresh(db_incidencia)
-    return db_incidencia
+    op_id = current_user.id if current_user and current_user.id else (incidencia.operador_id or 1)
+
+    try:
+        db_incidencia = Incidencia(
+            sede_id=incidencia.sede_id,
+            operador_id=op_id,
+            descripcion=incidencia.descripcion,
+            fecha_reporte=datetime.now()
+        )
+        db.add(db_incidencia)
+        db.commit()
+        db.refresh(db_incidencia)
+        return db_incidencia
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al registrar incidencia: {str(e)}")
 
 @router.get("/sede/{sede_id}", response_model=List[IncidenciaResponse])
 def listar_incidencias_por_sede(sede_id: int, db: Session = Depends(get_db)):

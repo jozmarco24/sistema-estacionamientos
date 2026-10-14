@@ -1,12 +1,47 @@
 <template>
   <div class="section-view active-section">
-    <!-- Sub-sección Mis Sedes -->
-    <div class="two-cols" style="margin-bottom: 24px;">
-      <!-- Lista de Sedes -->
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-warehouse"></i> Mis Sedes Activas</h2>
-          <span class="status-badge libre">{{ misSedes.length }} sedes</span>
+    <!-- TABS INTERNOS -->
+    <div class="inner-tabs">
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabSedes === 'sedes' }"
+        @click="cambiarTab('sedes')"
+      >
+        <i class="fa-solid fa-warehouse"></i> Mis Sedes
+      </button>
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabSedes === 'nueva_sede' }"
+        @click="cambiarTab('nueva_sede')"
+      >
+        <i class="fa-solid fa-plus-circle"></i> {{ formSede.id ? 'Editar Sede' : 'Nueva Sede' }}
+      </button>
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabSedes === 'slots' }"
+        @click="cambiarTab('slots')"
+      >
+        <i class="fa-solid fa-square-parking"></i> Slots
+      </button>
+    </div>
+
+    <!-- TAB: MIS SEDES (Lista) -->
+    <div v-show="tabSedes === 'sedes'">
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-warehouse"></i> Mis Sedes Activas</h2>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Gestiona tus sedes, horarios y tarifas diurnas/nocturnas.</p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="status-badge libre">{{ misSedes.length }} sedes</span>
+            <button @click="cambiarTab('nueva_sede')" class="btn-action" style="background:var(--primary); color:#fff; font-weight:700;">
+              <i class="fa-solid fa-plus"></i> Nueva Sede
+            </button>
+          </div>
         </div>
         <div class="table-wrapper">
           <table>
@@ -37,7 +72,7 @@
                 </td>
                 <td>
                   <div style="display:flex; gap:6px;">
-                    <button @click="editSede(s)" class="btn-action" title="Editar Sede"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button @click="editSede(s)" class="btn-action" title="Editar Sede"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
                     <button
                       @click="toggleEstadoSede(s)"
                       class="btn-action"
@@ -56,9 +91,11 @@
           </table>
         </div>
       </div>
+    </div>
 
-      <!-- Form Registrar/Editar Sede con Matriz de Tarifas -->
-      <div class="card">
+    <!-- TAB: NUEVA SEDE / EDITAR SEDE (Formulario con Matriz de Tarifas y Mapa) -->
+    <div v-show="tabSedes === 'nueva_sede'">
+      <div class="card" style="max-width: 800px; margin-bottom: 24px;">
         <h2 class="card-title">
           <i class="fa-solid fa-hotel"></i>
           {{ formSede.id ? `Editando Sede #${formSede.id}` : 'Registrar Nueva Sede' }}
@@ -136,104 +173,106 @@
       </div>
     </div>
 
-    <!-- Sub-sección Control de Espacios (Slots) -->
-    <div class="two-cols">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-          <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-square-parking"></i> Slots en Vivo</h2>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <select
-              v-model="filtroSlotSede"
-              style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none;"
-            >
-              <option value="">Todas las sedes</option>
-              <option v-for="s in misSedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
-            </select>
-            <button @click="exportSlotsExcel" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;"><i class="fa-solid fa-file-excel"></i> Excel</button>
-            <button @click="exportSlotsCSV" class="btn-action" title="Exportar a CSV"><i class="fa-solid fa-file-csv"></i> CSV</button>
+    <!-- TAB: SLOTS (Control de Espacios en Vivo + Crear) -->
+    <div v-show="tabSedes === 'slots'">
+      <div class="two-cols">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <h2 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-square-parking"></i> Slots en Vivo</h2>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select
+                v-model="filtroSlotSede"
+                style="background: rgba(15,23,42,0.6); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 8px; color: var(--text-main); font-size: 0.85rem; outline: none;"
+              >
+                <option value="">Todas las sedes</option>
+                <option v-for="s in misSedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+              </select>
+              <button @click="exportSlotsExcel" class="btn-action" title="Exportar a Microsoft Excel (.xlsx)" style="color:#10b981;"><i class="fa-solid fa-file-excel"></i> Excel</button>
+              <button @click="exportSlotsCSV" class="btn-action" title="Exportar a CSV"><i class="fa-solid fa-file-csv"></i> CSV</button>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height: 450px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sede</th>
+                  <th>Tipo Vehículo</th>
+                  <th>Número / Código</th>
+                  <th>Estado Actual</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="esp in slotsFiltrados" :key="esp.id">
+                  <td>{{ esp.sede_nombre }}</td>
+                  <td>
+                    <span v-if="esp.tipo_vehiculo === 'moto'" style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
+                      <i class="fa-solid fa-motorcycle"></i> Moto
+                    </span>
+                    <span v-else style="background:rgba(6,182,212,0.15); color:var(--accent); padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
+                      <i class="fa-solid fa-car"></i> Auto
+                    </span>
+                  </td>
+                  <td><strong>{{ esp.numero }}</strong></td>
+                  <td>
+                    <span class="status-badge" :class="esp.estado">{{ esp.estado.toUpperCase() }}</span>
+                  </td>
+                  <td>
+                    <button @click="eliminarEspacio(esp.id)" class="btn-action" title="Eliminar Slot" style="color:#ef4444;">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="slotsFiltrados.length === 0">
+                  <td colspan="5" style="text-align: center; color: var(--text-muted);">No hay espacios registrados en tus sedes.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-        <div class="table-wrapper" style="max-height: 450px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Sede</th>
-                <th>Tipo Vehículo</th>
-                <th>Número / Código</th>
-                <th>Estado Actual</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="esp in slotsFiltrados" :key="esp.id">
-                <td>{{ esp.sede_nombre }}</td>
-                <td>
-                  <span v-if="esp.tipo_vehiculo === 'moto'" style="background:rgba(245,158,11,0.15); color:#f59e0b; padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
-                    <i class="fa-solid fa-motorcycle"></i> Moto
-                  </span>
-                  <span v-else style="background:rgba(6,182,212,0.15); color:var(--accent); padding:4px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
-                    <i class="fa-solid fa-car"></i> Auto
-                  </span>
-                </td>
-                <td><strong>{{ esp.numero }}</strong></td>
-                <td>
-                  <span class="status-badge" :class="esp.estado">{{ esp.estado.toUpperCase() }}</span>
-                </td>
-                <td>
-                  <button @click="eliminarEspacio(esp.id)" class="btn-action" title="Eliminar Slot" style="color:#ef4444;">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="slotsFiltrados.length === 0">
-                <td colspan="5" style="text-align: center; color: var(--text-muted);">No hay espacios registrados en tus sedes.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- Form Crear Espacios Individual o Lote -->
-      <div class="card">
-        <h2 class="card-title"><i class="fa-solid fa-plus-circle"></i> Agregar Nuevos Cajones</h2>
-        <form @submit.prevent="handleCreateEspacio">
-          <div class="form-group">
-            <label>Sede Destino</label>
-            <select v-model="formEspacio.sede_id" required>
-              <option value="">-- Selecciona una Sede --</option>
-              <option v-for="s in misSedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Tipo de Vehículo Permitido</label>
-            <select v-model="formEspacio.tipo_vehiculo" required>
-              <option value="auto">🚗 Auto / Camioneta</option>
-              <option value="moto">🏍️ Moto Lineal</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Modo de Creación</label>
-            <select v-model="formEspacio.modo">
-              <option value="individual">Individual (1 solo cajón)</option>
-              <option value="lote">En Lote (Varios correlativos)</option>
-            </select>
-          </div>
-          <div v-if="formEspacio.modo === 'individual'" class="form-group">
-            <label>Número / Código del Espacio</label>
-            <input v-model="formEspacio.numero" type="text" placeholder="Ej. A-01" required>
-          </div>
-          <div v-else style="display:flex; flex-direction:column;">
+        <!-- Form Crear Espacios Individual o Lote -->
+        <div class="card">
+          <h2 class="card-title"><i class="fa-solid fa-plus-circle"></i> Agregar Nuevos Cajones</h2>
+          <form @submit.prevent="handleCreateEspacio">
             <div class="form-group">
-              <label>Prefijo</label>
-              <input v-model="formEspacio.prefijo" type="text" required>
+              <label>Sede Destino</label>
+              <select v-model="formEspacio.sede_id" required>
+                <option value="">-- Selecciona una Sede --</option>
+                <option v-for="s in misSedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+              </select>
             </div>
             <div class="form-group">
-              <label>Cantidad a Generar</label>
-              <input v-model.number="formEspacio.cantidad" type="number" min="1" max="50" required>
+              <label>Tipo de Vehículo Permitido</label>
+              <select v-model="formEspacio.tipo_vehiculo" required>
+                <option value="auto">🚗 Auto / Camioneta</option>
+                <option value="moto">🏍️ Moto Lineal</option>
+              </select>
             </div>
-          </div>
-          <button type="submit" class="btn-submit" style="width: 100%; margin-top: 10px;">Crear Cajones</button>
-        </form>
+            <div class="form-group">
+              <label>Modo de Creación</label>
+              <select v-model="formEspacio.modo">
+                <option value="individual">Individual (1 solo cajón)</option>
+                <option value="lote">En Lote (Varios correlativos)</option>
+              </select>
+            </div>
+            <div v-if="formEspacio.modo === 'individual'" class="form-group">
+              <label>Número / Código del Espacio</label>
+              <input v-model="formEspacio.numero" type="text" placeholder="Ej. A-01" required>
+            </div>
+            <div v-else style="display:flex; flex-direction:column;">
+              <div class="form-group">
+                <label>Prefijo</label>
+                <input v-model="formEspacio.prefijo" type="text" required>
+              </div>
+              <div class="form-group">
+                <label>Cantidad a Generar</label>
+                <input v-model.number="formEspacio.cantidad" type="number" min="1" max="50" required>
+              </div>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 10px;">Crear Cajones</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -252,6 +291,15 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['refresh', 'refresh-supervision', 'toast'])
+
+const tabSedes = ref('sedes')
+
+function cambiarTab(tab) {
+  tabSedes.value = tab
+  if (tab === 'sedes') {
+    initPickerMap()
+  }
+}
 
 const filtroSlotSede = ref('')
 
@@ -331,8 +379,9 @@ function editSede(s) {
   formSede.tarifa_moto_dia = s.tarifa_moto_dia !== undefined ? s.tarifa_moto_dia : 3.0
   formSede.tarifa_moto_noche = s.tarifa_moto_noche !== undefined ? s.tarifa_moto_noche : 2.0
 
-  initPickerMap()
+  cambiarTab('nueva_sede')
   nextTick(() => {
+    initPickerMap()
     if (pickerMarkerProp) pickerMarkerProp.setLatLng([s.latitud, s.longitud])
     if (pickerMapProp) {
       pickerMapProp.setView([s.latitud, s.longitud], 15)
@@ -360,6 +409,7 @@ function cancelSedeEdit() {
     pickerMapProp.setView([-12.046, -77.042], 13)
     pickerMapProp.invalidateSize()
   }
+  cambiarTab('sedes')
 }
 
 async function handleSaveSede() {

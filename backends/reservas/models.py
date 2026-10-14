@@ -1,5 +1,5 @@
-﻿import enum
-from sqlalchemy import Column, Integer, Enum, DateTime, String
+import enum
+from sqlalchemy import Column, Integer, Float, Enum, DateTime, String
 from sqlalchemy.sql import func
 from database import Base, SCHEMA_NAME
 
@@ -9,6 +9,7 @@ class EstadoReserva(str, enum.Enum):
     en_curso = "en_curso"
     cancelada = "cancelada"
     finalizada = "finalizada"
+    completada = "completada"
     fallida = "fallida"
 
 class Reserva(Base):
@@ -24,3 +25,4 @@ class Reserva(Base):
     placa_vehiculo = Column(String(20), nullable=False, default="N/A")
     creado_en = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     expira_en = Column(DateTime(timezone=True), nullable=True)
+    monto_cobrado = Column(Float, nullable=True, default=0.0)

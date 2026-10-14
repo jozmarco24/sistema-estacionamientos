@@ -1,5 +1,6 @@
+from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union
 from models import EstadoEspacio, TipoVehiculo
 
 class SedeCreate(BaseModel):
@@ -85,13 +86,14 @@ class EspacioLoteCreate(BaseModel):
 class IncidenciaCreate(BaseModel):
     sede_id: int
     descripcion: str
+    operador_id: Optional[int] = None
 
 class IncidenciaResponse(BaseModel):
     id: int
     sede_id: int
     operador_id: int
     descripcion: str
-    fecha_reporte: str
+    fecha_reporte: Union[datetime, str]
     estado: str
 
     class Config:

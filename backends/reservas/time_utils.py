@@ -5,14 +5,14 @@ LIMA_OFFSET_HOURS = -5
 LIMA_TIMEZONE = timezone(timedelta(hours=LIMA_OFFSET_HOURS))
 
 def utc_now() -> datetime:
-    """Retorna la fecha y hora actual en UTC (naive para compatibilidad con Postgres sin tz)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    """Retorna la fecha y hora actual en UTC aware."""
+    return datetime.now(timezone.utc)
 
 def to_utc(dt: datetime) -> datetime:
-    """Normaliza cualquier datetime (naive o aware) a UTC naive."""
+    """Normaliza cualquier datetime (naive asumido UTC o aware) a UTC aware."""
     if dt.tzinfo is None:
-        return dt
-    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 def to_lima(dt: datetime) -> datetime:
     """Convierte un datetime (UTC o naive asumido UTC) al timezone de Lima (UTC-5)."""

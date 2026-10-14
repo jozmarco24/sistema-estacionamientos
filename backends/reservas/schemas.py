@@ -27,6 +27,7 @@ class ReservaResponse(BaseModel):
     estado: EstadoReserva
     placa_vehiculo: str
     expira_en: Optional[datetime] = None
+    monto_cobrado: Optional[float] = 0.0
 
     class Config:
         from_attributes = True

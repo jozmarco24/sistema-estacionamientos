@@ -19,6 +19,15 @@ export const reservasService = {
   crearReserva(data) {
     return api.post(`${URLS.reservas}/reservas/`, data)
   },
+  walkin(data) {
+    return api.post(`${URLS.reservas}/reservas/walkin`, data)
+  },
+  cobrarCaseta(reservaId, metodoPago = 'efectivo') {
+    return api.post(`${URLS.reservas}/reservas/${reservaId}/cobrar-caseta?metodo_pago=${metodoPago}`)
+  },
+  liberarManual(reservaId) {
+    return api.post(`${URLS.reservas}/reservas/${reservaId}/liberar-manual`)
+  },
   cancelarReserva(id) {
     return api.put(`${URLS.reservas}/reservas/${id}/cancelar`)
   },

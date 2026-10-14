@@ -1,8 +1,28 @@
 <template>
   <div class="section-view active-section">
-    <div class="two-cols">
-      <!-- Estado y Límites -->
-      <div class="card">
+    <!-- TABS INTERNOS -->
+    <div class="inner-tabs">
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabSuscripcion === 'estado' }"
+        @click="tabSuscripcion = 'estado'"
+      >
+        <i class="fa-solid fa-file-invoice"></i> Mi Estado
+      </button>
+      <button
+        type="button"
+        class="inner-tab-btn"
+        :class="{ active: tabSuscripcion === 'planes' }"
+        @click="tabSuscripcion = 'planes'"
+      >
+        <i class="fa-solid fa-cart-shopping"></i> Planes
+      </button>
+    </div>
+
+    <!-- TAB: ESTADO -->
+    <div v-show="tabSuscripcion === 'estado'">
+      <div class="card" style="max-width: 720px; margin-bottom: 24px;">
         <h2 class="card-title"><i class="fa-solid fa-id-card"></i> Estado de tu Membresía</h2>
         <div class="suscripcion-status-card">
           <template v-if="suscripcionActual">
@@ -53,9 +73,11 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Planes Disponibles -->
-      <div class="card">
+    <!-- TAB: PLANES -->
+    <div v-show="tabSuscripcion === 'planes'">
+      <div class="card" style="max-width: 800px; margin-bottom: 24px;">
         <h2 class="card-title"><i class="fa-solid fa-boxes-stacked"></i> Planes Disponibles</h2>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom: 14px;">Elige el plan que mejor se adapte al crecimiento de tus estacionamientos.</p>
         <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -112,7 +134,7 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { usuariosService } from '@/services/usuarios'
 import { pagosService } from '@/services/pagos'
 import api, { URLS } from '@/services/api'
@@ -128,6 +150,8 @@ const props = defineProps({
 const emit = defineEmits(['refresh', 'toast'])
 
 const authStore = useAuthStore()
+
+const tabSuscripcion = ref('estado')
 
 const planLimites = reactive({ max_sedes: 1, max_operadores: 2 })
 
