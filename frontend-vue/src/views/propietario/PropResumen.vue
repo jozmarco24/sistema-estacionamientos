@@ -49,7 +49,9 @@
             </button>
           </div>
         </div>
-        <div id="owner-map"></div>
+        <div style="border-radius: 12px; overflow: hidden; width: 100%; border: 1px solid var(--glass-border);">
+          <div id="owner-map" style="height: 400px; width: 100%; border-radius: inherit;"></div>
+        </div>
       </div>
 
       <!-- Incidencias Reportadas -->
@@ -121,9 +123,14 @@ function initOwnerMap() {
     ownerMarkersLayer = L.layerGroup().addTo(ownerMap)
     updateMarkers()
   }
-  setTimeout(() => {
-    if (ownerMap) ownerMap.invalidateSize()
-  }, 150)
+  nextTick(() => {
+    setTimeout(() => {
+      if (ownerMap) {
+        ownerMap.invalidateSize()
+        recenterOwnerMap()
+      }
+    }, 200)
+  })
 }
 
 function updateMarkers() {
@@ -144,6 +151,9 @@ function updateMarkers() {
   if (validCoords.length > 0 && ownerMap) {
     ownerMap.fitBounds(L.latLngBounds(validCoords), { padding: [50, 50], maxZoom: 15 })
   }
+  nextTick(() => {
+    if (ownerMap) ownerMap.invalidateSize()
+  })
 }
 
 function recenterOwnerMap() {
@@ -152,10 +162,13 @@ function recenterOwnerMap() {
   if (valid.length === 0) return
   const bounds = L.latLngBounds(valid.map(s => [s.latitud, s.longitud]))
   ownerMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 })
+  ownerMap.invalidateSize()
 }
 
 onMounted(() => {
-  nextTick(() => initOwnerMap())
+  nextTick(() => {
+    initOwnerMap()
+  })
 })
 
 watch(() => props.misSedes, () => {

@@ -112,7 +112,9 @@
 
           <div class="form-group">
             <label>Ubicación (Haz clic en el mapa para fijar coordenadas)</label>
-            <div id="map-picker-prop"></div>
+            <div style="border-radius: 12px; overflow: hidden; width: 100%; border: 1px solid var(--glass-border);">
+              <div id="map-picker-prop" style="height: 260px; width: 100%; min-height: 260px; border-radius: inherit; border: none; margin-bottom: 0;"></div>
+            </div>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             <div class="form-group"><label>Latitud</label><input v-model.number="formSede.latitud" type="number" step="0.000001" required></div>
@@ -285,21 +287,35 @@ const slotsFiltrados = computed(() => {
 })
 
 function initPickerMap() {
-  const pMapEl = document.getElementById('map-picker-prop')
-  if (pMapEl && !pickerMapProp) {
-    pickerMapProp = L.map('map-picker-prop').setView([formSede.latitud, formSede.longitud], 13)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(pickerMapProp)
-    pickerMarkerProp = L.marker([formSede.latitud, formSede.longitud]).addTo(pickerMapProp)
+  nextTick(() => {
+    const pMapEl = document.getElementById('map-picker-prop')
+    if (!pMapEl) return
 
-    pickerMapProp.on('click', (e) => {
-      formSede.latitud = parseFloat(e.latlng.lat.toFixed(6))
-      formSede.longitud = parseFloat(e.latlng.lng.toFixed(6))
-      pickerMarkerProp.setLatLng(e.latlng)
-    })
-  }
-  setTimeout(() => {
-    if (pickerMapProp) pickerMapProp.invalidateSize()
-  }, 150)
+    if (!pickerMapProp) {
+      pickerMapProp = L.map('map-picker-prop').setView([formSede.latitud, formSede.longitud], 13)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(pickerMapProp)
+      pickerMarkerProp = L.marker([formSede.latitud, formSede.longitud]).addTo(pickerMapProp)
+
+      pickerMapProp.on('click', (e) => {
+        formSede.latitud = parseFloat(e.latlng.lat.toFixed(6))
+        formSede.longitud = parseFloat(e.latlng.lng.toFixed(6))
+        pickerMarkerProp.setLatLng(e.latlng)
+      })
+    }
+
+    setTimeout(() => {
+      if (pickerMapProp) {
+        pickerMapProp.invalidateSize()
+        pickerMapProp.setView([formSede.latitud, formSede.longitud])
+      }
+    }, 150)
+
+    setTimeout(() => {
+      if (pickerMapProp) {
+        pickerMapProp.invalidateSize()
+      }
+    }, 350)
+  })
 }
 
 function editSede(s) {
@@ -315,8 +331,14 @@ function editSede(s) {
   formSede.tarifa_moto_dia = s.tarifa_moto_dia !== undefined ? s.tarifa_moto_dia : 3.0
   formSede.tarifa_moto_noche = s.tarifa_moto_noche !== undefined ? s.tarifa_moto_noche : 2.0
 
-  if (pickerMarkerProp) pickerMarkerProp.setLatLng([s.latitud, s.longitud])
-  if (pickerMapProp) pickerMapProp.setView([s.latitud, s.longitud], 15)
+  initPickerMap()
+  nextTick(() => {
+    if (pickerMarkerProp) pickerMarkerProp.setLatLng([s.latitud, s.longitud])
+    if (pickerMapProp) {
+      pickerMapProp.setView([s.latitud, s.longitud], 15)
+      pickerMapProp.invalidateSize()
+    }
+  })
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -332,6 +354,12 @@ function cancelSedeEdit() {
   formSede.tarifa_auto_noche = 4.0
   formSede.tarifa_moto_dia = 3.0
   formSede.tarifa_moto_noche = 2.0
+
+  if (pickerMarkerProp) pickerMarkerProp.setLatLng([-12.046, -77.042])
+  if (pickerMapProp) {
+    pickerMapProp.setView([-12.046, -77.042], 13)
+    pickerMapProp.invalidateSize()
+  }
 }
 
 async function handleSaveSede() {

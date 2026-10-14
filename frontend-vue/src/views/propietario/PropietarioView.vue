@@ -684,8 +684,8 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-:deep(#owner-map) { width: 100%; height: 320px; border-radius: 14px; border: 1px solid var(--glass-border); }
-:deep(#map-picker-prop) { width: 100%; height: 160px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 6px; }
+:deep(#owner-map) { width: 100%; height: 400px; min-height: 400px; border-radius: 14px; border: 1px solid var(--glass-border); }
+:deep(#map-picker-prop) { width: 100%; height: 260px; min-height: 260px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 6px; }
 
 /* Tables */
 :deep(.table-wrapper) { overflow-x: auto; width: 100%; }
