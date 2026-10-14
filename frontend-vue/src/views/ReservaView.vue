@@ -6,7 +6,7 @@
       </router-link>
       <div style="display:flex; align-items:center; gap:12px;">
         <button
-          @click="toggleTheme"
+          @click="themeStore.toggleTheme()"
           id="theme-btn"
           style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: var(--text-light); padding: 8px 16px; border-radius: 99px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem;"
         >
@@ -51,7 +51,6 @@
             @click="selectSpace(space)"
           >
             <span class="number">{{ space.numero }}</span>
-            <span class="status-lbl">{{ space.estado }}</span>
           </div>
         </div>
       </div>
@@ -167,10 +166,6 @@ onMounted(async () => {
   await fetchVehiculos()
   await recalcularCotizacion()
 })
-
-const toggleTheme = () => {
-  themeStore.toggleTheme()
-}
 
 const fetchSedeDetails = async () => {
   try {

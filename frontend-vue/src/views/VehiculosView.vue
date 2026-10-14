@@ -1,18 +1,18 @@
 <template>
-  <div class="vehiculos-page" :class="{ 'light-mode': !isDark }">
+  <div class="vehiculos-page" :class="{ 'light-mode': themeStore.isLight }">
     <header>
       <router-link to="/dashboard" class="header-logo">
         <i class="fa-solid fa-square-parking"></i> SmartPark
       </router-link>
       <div style="display:flex; align-items:center; gap:12px;">
         <button
-          @click="toggleTheme"
+          @click="themeStore.toggleTheme()"
           id="theme-btn"
           type="button"
           style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: var(--text-light); padding: 8px 16px; border-radius: 99px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem;"
         >
-          <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="isDark ? { color: '#f59e0b' } : {}"></i>
-          <span>{{ isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
+          <i :class="themeStore.isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="themeStore.isDark ? { color: '#f59e0b' } : {}"></i>
+          <span>{{ themeStore.isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
         </button>
         <router-link to="/dashboard" class="btn-back">
           <i class="fa-solid fa-arrow-left"></i> Volver
@@ -118,12 +118,6 @@ const form = ref({
   modelo: '',
   color: ''
 })
-
-const isDark = computed(() => themeStore.isDark)
-
-const toggleTheme = () => {
-  themeStore.toggleTheme()
-}
 
 onMounted(async () => {
   themeStore.initTheme()

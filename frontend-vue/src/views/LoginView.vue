@@ -1,9 +1,9 @@
 <template>
-  <div class="login-page-wrapper" :class="{ 'dark-mode': isDark }">
+  <div class="login-page-wrapper" :class="{ 'dark-mode': themeStore.isDark }">
     <!-- Botón Flotante para Alternar Modo Claro / Modo Oscuro -->
-    <button class="theme-toggle-fixed" @click="toggleTheme" id="login-theme-btn" type="button">
-      <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="isDark ? { color: '#f59e0b' } : {}"></i>
-      <span>{{ isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
+    <button class="theme-toggle-fixed" @click="themeStore.toggleTheme()" id="login-theme-btn" type="button">
+      <i :class="themeStore.isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="themeStore.isDark ? { color: '#f59e0b' } : {}"></i>
+      <span>{{ themeStore.isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
     </button>
 
     <!-- Selector de Tipo de Usuario (Conductor vs Empresa) -->
@@ -181,12 +181,6 @@ const password = ref('')
 
 const alertMessage = ref('')
 const alertIsSuccess = ref(false)
-
-const isDark = computed(() => themeStore.isDark)
-
-const toggleTheme = () => {
-  themeStore.toggleTheme()
-}
 
 const subtitleText = computed(() => {
   if (currentPortal.value === 'empresa') {

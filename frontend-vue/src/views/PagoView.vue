@@ -1,9 +1,9 @@
 <template>
-  <div class="pago-page-wrapper" :class="{ 'light-mode': !isDark }">
+  <div class="pago-page-wrapper" :class="{ 'light-mode': themeStore.isLight }">
     <!-- Botón de Alternancia de Tema -->
-    <button class="theme-btn-float" @click="toggleTheme" id="theme-btn" type="button">
-      <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="isDark ? { color: '#f59e0b' } : {}"></i>
-      <span>{{ isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
+    <button class="theme-btn-float" @click="themeStore.toggleTheme()" id="theme-btn" type="button">
+      <i :class="themeStore.isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="themeStore.isDark ? { color: '#f59e0b' } : {}"></i>
+      <span>{{ themeStore.isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
     </button>
 
     <div class="payment-card">
@@ -226,12 +226,6 @@ const themeStore = useThemeStore()
 
 const reservaId = computed(() => route.query.reserva_id ? parseInt(route.query.reserva_id) : null)
 const suscripcionId = computed(() => route.query.suscripcion_id ? parseInt(route.query.suscripcion_id) : null)
-
-const isDark = computed(() => themeStore.isDark)
-
-const toggleTheme = () => {
-  themeStore.toggleTheme()
-}
 
 const activeCulqiTab = ref('tarjeta')
 const pagoId = ref(null)
