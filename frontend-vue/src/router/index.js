@@ -1,4 +1,4 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 import LoginView from '@/views/LoginView.vue'
@@ -41,7 +41,7 @@ router.beforeEach((to, from, next) => {
 
     if (to.meta.roles && to.meta.roles.length > 0) {
       const userRol = (authStore.user?.rol || '').toLowerCase()
-      // Admin tiene acceso a todo si lo desea, pero respetamos roles especÃ­ficos
+      // Admin tiene acceso a todo si lo desea, pero respetamos roles específicos
       const matches = to.meta.roles.includes(userRol) || (userRol === 'admin' && to.path === '/admin')
       if (!matches) {
         if (userRol === 'admin') return next('/admin')
@@ -52,7 +52,7 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // Si ya estÃ¡ logueado e intenta ir a login -> llevar a su panel
+  // Si ya está logueado e intenta ir a login -> llevar a su panel
   if (to.path === '/login' && authStore.isAuthenticated) {
     const rol = (authStore.user?.rol || '').toLowerCase()
     if (rol === 'admin') return next('/admin')
