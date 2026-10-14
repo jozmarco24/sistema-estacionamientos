@@ -21,13 +21,13 @@ export const pagosService = {
     return api.post(`${URLS.pagos}/pagos/culqi/cobrar`, data)
   },
   getCredencialesEstado() {
-    return api.get(`${URLS.pagos}/pagos/credenciales/estado`)
+    return api.get(`${URLS.pagos}/credenciales/estado`)
   },
   guardarCredenciales(data) {
-    return api.post(`${URLS.pagos}/pagos/credenciales/`, data)
+    return api.post(`${URLS.pagos}/credenciales/`, data)
   },
   verificarCredenciales() {
-    return api.post(`${URLS.pagos}/pagos/credenciales/verificar`)
+    return api.post(`${URLS.pagos}/credenciales/verificar`)
   },
   health() {
     return api.get(`${URLS.pagos}/health`)

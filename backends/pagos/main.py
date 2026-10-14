@@ -73,6 +73,7 @@ app.add_middleware(
 
 app.include_router(pagos_router)
 app.include_router(credenciales_router)
+app.include_router(credenciales_router, prefix="/pagos")
 
 @app.get("/")
 def read_root():

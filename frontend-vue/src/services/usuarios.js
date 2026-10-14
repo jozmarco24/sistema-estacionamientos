@@ -46,8 +46,20 @@ export const usuariosService = {
   getPlanes() {
     return api.get(`${URLS.usuarios}/usuarios/planes`)
   },
+  crearPlan(data) {
+    return api.post(`${URLS.usuarios}/usuarios/planes`, data)
+  },
+  actualizarPlan(id, data) {
+    return api.put(`${URLS.usuarios}/usuarios/planes/${id}`, data)
+  },
   getSuscripcionesTodas() {
     return api.get(`${URLS.usuarios}/usuarios/suscripciones/todas`)
+  },
+  actualizarSuscripcionEstado(id, data) {
+    return api.put(`${URLS.usuarios}/usuarios/suscripciones/${id}/estado`, data)
+  },
+  cambiarPlanMembresia(data) {
+    return api.post(`${URLS.usuarios}/membresias/cambiar-plan`, data)
   },
   getMiSuscripcion() {
     return api.get(`${URLS.usuarios}/usuarios/suscripcion/actual`)

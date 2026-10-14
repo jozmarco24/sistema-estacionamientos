@@ -1,125 +1,116 @@
 <template>
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col">
-    <!-- Header -->
-    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
-      <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <router-link to="/dashboard" class="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-          <i class="fa-solid fa-arrow-left text-slate-400 hover:text-sky-500"></i>
-          <span>Volver al Dashboard</span>
+  <div class="vehiculos-page" :class="{ 'light-mode': !isDark }">
+    <header>
+      <router-link to="/dashboard" class="header-logo">
+        <i class="fa-solid fa-square-parking"></i> SmartPark
+      </router-link>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button
+          @click="toggleTheme"
+          id="theme-btn"
+          type="button"
+          style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: var(--text-light); padding: 8px 16px; border-radius: 99px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem;"
+        >
+          <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="isDark ? { color: '#f59e0b' } : {}"></i>
+          <span>{{ isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
+        </button>
+        <router-link to="/dashboard" class="btn-back">
+          <i class="fa-solid fa-arrow-left"></i> Volver
         </router-link>
-        <ThemeToggle />
       </div>
     </header>
 
-    <!-- Contenido -->
-    <main class="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h1 class="text-2xl font-black text-slate-900 dark:text-white">Mis Vehículos</h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Registra tus placas para reservar en 1 clic</p>
+    <div class="main-card">
+      <h1 class="title"><i class="fa-solid fa-car"></i> Mis Vehículos</h1>
+      <p class="subtitle">Registra tus autos para poder agilizar tus reservas.</p>
+
+      <div class="vehiculo-list" id="vehiculos-container">
+        <div v-if="loading" class="empty-state">Cargando tus vehículos...</div>
+        <div v-else-if="vehiculos.length === 0" class="empty-state">
+          No tienes ningún vehículo registrado. Añade uno abajo.
         </div>
-        <button
-          @click="mostrarForm = !mostrarForm"
-          class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-md shadow-sky-600/20 flex items-center gap-2"
-        >
-          <i :class="mostrarForm ? 'fa-solid fa-xmark' : 'fa-solid fa-plus'"></i>
-          <span>{{ mostrarForm ? 'Cancelar' : 'Agregar Vehículo' }}</span>
-        </button>
-      </div>
-
-      <!-- Formulario Agregar Vehículo Inline -->
-      <div v-if="mostrarForm" class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg mb-8">
-        <h3 class="font-bold text-sm text-slate-900 dark:text-white mb-4">Nuevo Vehículo</h3>
-        <form @submit.prevent="guardarVehiculo" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Placa *</label>
-            <input v-model="form.placa" required type="text" placeholder="ABC-123" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono uppercase text-slate-900 dark:text-white" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Marca *</label>
-            <input v-model="form.marca" required type="text" placeholder="Toyota" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Modelo *</label>
-            <input v-model="form.modelo" required type="text" placeholder="Corolla" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Color *</label>
-            <input v-model="form.color" required type="text" placeholder="Gris Plata" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white" />
-          </div>
-          <div class="sm:col-span-2 md:col-span-4 flex justify-end gap-2 pt-2">
-            <button type="submit" :disabled="guardando" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow">
-              <i v-if="guardando" class="fa-solid fa-spinner fa-spin mr-1"></i>
-              Guardar Vehículo
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Estado Vacío -->
-      <div v-if="vehiculos.length === 0 && !loading" class="text-center py-16 p-8 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800">
-        <div class="w-16 h-16 rounded-full bg-sky-500/10 text-sky-500 flex items-center justify-center mx-auto text-2xl mb-4">
-          <i class="fa-solid fa-car-side"></i>
-        </div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-white">Aún no tienes vehículos registrados</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-5">
-          Agrega tu auto o motocicleta para agilizar tus reservas en cualquier sede de SmartPark.
-        </p>
-        <button
-          @click="mostrarForm = true"
-          class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow"
-        >
-          Registrar mi primer vehículo
-        </button>
-      </div>
-
-      <!-- Grid Cards de Vehículos -->
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div
+          v-else
           v-for="v in vehiculos"
           :key="v.id"
-          class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:border-sky-500/50 transition-all"
+          class="vehiculo-card"
         >
-          <div>
-            <div class="flex items-start justify-between">
-              <span class="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-mono font-black text-sm uppercase text-sky-600 dark:text-sky-400 tracking-wider">
-                {{ v.placa }}
-              </span>
-              <button
-                @click="eliminarVehiculo(v.id)"
-                class="text-slate-400 hover:text-rose-500 p-1 transition-colors"
-                title="Eliminar vehículo"
-              >
-                <i class="fa-regular fa-trash-can text-sm"></i>
-              </button>
-            </div>
-            <div class="mt-4">
-              <h4 class="font-bold text-base text-slate-900 dark:text-white">{{ v.marca }} {{ v.modelo }}</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Color: <strong class="text-slate-700 dark:text-slate-300">{{ v.color }}</strong></p>
-            </div>
-          </div>
-          <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Vehículo Registrado</span>
-            <span class="text-emerald-500 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>Habilitado</span>
+          <div class="v-placa">{{ v.placa }}</div>
+          <div class="v-details">
+            <span>{{ v.marca }}</span> {{ v.modelo }} &bull; {{ v.color }}
           </div>
         </div>
       </div>
-    </main>
+
+      <form id="form-vehiculo" @submit.prevent="handleAdd">
+        <h3 style="font-size: 1.2rem; margin-bottom: 16px; text-align: left;">+ Registrar Nuevo Vehículo</h3>
+        <div class="form-grid">
+          <div class="input-group">
+            <label>Número de Placa</label>
+            <input
+              v-model="form.placa"
+              type="text"
+              id="v-placa"
+              placeholder="ABC-123"
+              required
+              class="uppercase"
+            />
+          </div>
+          <div class="input-group">
+            <label>Marca</label>
+            <input
+              v-model="form.marca"
+              type="text"
+              id="v-marca"
+              placeholder="Toyota, Kia..."
+              required
+            />
+          </div>
+          <div class="input-group">
+            <label>Modelo</label>
+            <input
+              v-model="form.modelo"
+              type="text"
+              id="v-modelo"
+              placeholder="Corolla, Rio..."
+              required
+            />
+          </div>
+          <div class="input-group">
+            <label>Color</label>
+            <input
+              v-model="form.color"
+              type="text"
+              id="v-color"
+              placeholder="Negro, Blanco..."
+              required
+            />
+          </div>
+        </div>
+        <button type="submit" class="btn-add" :disabled="submitting">
+          <i class="fa-solid" :class="submitting ? 'fa-spinner fa-spin' : 'fa-plus'"></i>
+          <span> Agregar Vehículo</span>
+        </button>
+      </form>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { usuariosService } from '@/services/usuarios'
 import { showToast } from '@/components/ToastAlert.vue'
-import ThemeToggle from '@/components/ThemeToggle.vue'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const themeStore = useThemeStore()
+
 const vehiculos = ref([])
 const loading = ref(true)
-const guardando = ref(false)
-const mostrarForm = ref(false)
+const submitting = ref(false)
 
 const form = ref({
   placa: '',
@@ -128,45 +119,300 @@ const form = ref({
   color: ''
 })
 
+const isDark = computed(() => themeStore.isDark)
+
+const toggleTheme = () => {
+  themeStore.toggleTheme()
+}
+
 onMounted(async () => {
-  themeStore.initTheme(false)
-  await cargarVehiculos()
+  themeStore.initTheme()
+  if (!authStore.token && !localStorage.getItem('jwt_token')) {
+    router.push('/login')
+    return
+  }
+  await fetchVehiculos()
 })
 
-const cargarVehiculos = async () => {
+const fetchVehiculos = async () => {
   loading.value = true
   try {
     const res = await usuariosService.getMisVehiculos()
-    vehiculos.value = res.data || []
-  } catch (err) {
-    showToast('Error cargando vehículos', 'error')
+    const data = res.data
+    vehiculos.value = Array.isArray(data) ? data : (data?.data || [])
+  } catch (e) {
+    showToast(e.response?.data?.detail || 'Error al cargar vehículos', 'error')
   } finally {
     loading.value = false
   }
 }
 
-const guardarVehiculo = async () => {
-  guardando.value = true
+const handleAdd = async () => {
+  submitting.value = true
   try {
-    await usuariosService.crearVehiculo(form.value)
-    showToast('Vehículo registrado con éxito', 'success')
-    mostrarForm.value = false
+    const payload = {
+      placa: form.value.placa.trim().toUpperCase(),
+      marca: form.value.marca.trim(),
+      modelo: form.value.modelo.trim(),
+      color: form.value.color.trim()
+    }
+    await usuariosService.crearVehiculo(payload)
+    showToast('Vehículo registrado exitosamente', 'success')
     form.value = { placa: '', marca: '', modelo: '', color: '' }
-    await cargarVehiculos()
+    await fetchVehiculos()
   } catch (err) {
     showToast(err.response?.data?.detail || 'Error al guardar vehículo', 'error')
   } finally {
-    guardando.value = false
-  }
-}
-
-const eliminarVehiculo = async (id) => {
-  if (!confirm('¿Deseas retirar este vehículo de tu cuenta?')) return
-  try {
-    showToast('Vehículo eliminado', 'success')
-    vehiculos.value = vehiculos.value.filter(v => v.id !== id)
-  } catch (err) {
-    showToast('Error al eliminar vehículo', 'error')
+    submitting.value = false
   }
 }
 </script>
+
+<style scoped>
+.vehiculos-page {
+  --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #0f172a 100%);
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
+  --accent: #38bdf8;
+  --text-light: #f8fafc;
+  --glass-bg: rgba(17, 24, 39, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: var(--text-light);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 50px;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  transition: background 0.25s ease, color 0.25s ease;
+  box-sizing: border-box;
+}
+
+.vehiculos-page.light-mode {
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  --glass-bg: #ffffff;
+  --glass-border: #e2e8f0;
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
+  --accent: #0284c7;
+  --text-light: #0f172a;
+}
+
+.vehiculos-page.light-mode header {
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom-color: #e2e8f0;
+}
+.vehiculos-page.light-mode .main-card {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  border-color: #e2e8f0;
+}
+.vehiculos-page.light-mode .vehiculo-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+.vehiculos-page.light-mode .v-details {
+  color: #64748b;
+}
+.vehiculos-page.light-mode .input-group input {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+.vehiculos-page.light-mode .title {
+  color: #0f172a;
+}
+.vehiculos-page.light-mode .btn-back {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.vehiculos-page.light-mode .btn-back:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.vehiculos-page.light-mode .empty-state {
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+header {
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 16px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 40px;
+  box-sizing: border-box;
+}
+
+.header-logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-back {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  color: #94a3b8;
+  padding: 8px 16px;
+  border-radius: 99px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-back:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+}
+
+.main-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  width: 90%;
+  max-width: 700px;
+  padding: 40px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.subtitle {
+  color: #94a3b8;
+  font-size: 1rem;
+  margin-bottom: 30px;
+}
+
+.vehiculo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.vehiculo-card {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+.vehiculo-card:hover {
+  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.v-placa {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  background: #000;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 2px solid #fff;
+  letter-spacing: 2px;
+}
+
+.v-details {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+}
+.v-details span {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input-group {
+  text-align: left;
+}
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-bottom: 6px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.input-group input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text-light);
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+.input-group input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.btn-add {
+  width: 100%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+}
+.btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
+}
+
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  padding: 30px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 16px;
+  margin-bottom: 30px;
+}
+</style>

@@ -1,259 +1,684 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-50 dark:bg-slate-950">
-    <!-- Top Theme Toggle -->
-    <div class="absolute top-6 right-6 z-20">
-      <ThemeToggle :show-label="true" />
+  <div class="login-page-wrapper" :class="{ 'dark-mode': isDark }">
+    <!-- Botón Flotante para Alternar Modo Claro / Modo Oscuro -->
+    <button class="theme-toggle-fixed" @click="toggleTheme" id="login-theme-btn" type="button">
+      <i :class="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'" :style="isDark ? { color: '#f59e0b' } : {}"></i>
+      <span>{{ isDark ? 'Modo Claro' : 'Modo Oscuro' }}</span>
+    </button>
+
+    <!-- Selector de Tipo de Usuario (Conductor vs Empresa) -->
+    <div class="portal-tabs">
+      <button
+        class="portal-tab-btn"
+        :class="{ active: currentPortal === 'conductor' }"
+        id="btn-portal-conductor"
+        @click="selectPortal('conductor')"
+        type="button"
+      >
+        <i class="fa-solid fa-car"></i> Para Conductores
+      </button>
+      <button
+        class="portal-tab-btn"
+        :class="{ active: currentPortal === 'empresa' }"
+        id="btn-portal-empresa"
+        @click="selectPortal('empresa')"
+        type="button"
+      >
+        <i class="fa-solid fa-building"></i> Para Empresas / Dueños
+      </button>
     </div>
 
-    <!-- Gradient Background Glows -->
-    <div class="absolute -top-40 -left-40 w-96 h-96 bg-sky-500/15 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
-
-    <!-- Container Card -->
-    <div class="w-full max-w-md bg-white dark:bg-slate-900/90 dark:glass-card rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 z-10">
-      <!-- Logo & Brand Header -->
-      <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-500/25 mb-4">
-          <i class="fa-solid fa-square-parking text-2xl"></i>
-        </div>
-        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">SmartPark</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestión Inteligente de Estacionamientos</p>
+    <!-- Tarjeta de Autenticación Blanca (Estilo Minimalista) -->
+    <div class="auth-card">
+      <!-- Logo -->
+      <div class="logo-wrap">
+        <div class="logo-icon"><i class="fa-solid fa-square-parking"></i></div>
+        <div class="logo-text">Smart<span>Park</span></div>
       </div>
+      <div class="brand-subline">Estacionamientos Inteligentes</div>
 
-      <!-- Mode Switch: Conductor / Empresa -->
-      <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
-        <button
-          type="button"
-          @click="roleTab = 'conductor'"
-          class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all"
-          :class="roleTab === 'conductor' 
-            ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm' 
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
-        >
-          <i class="fa-solid fa-car mr-1.5"></i> Conductor
-        </button>
-        <button
-          type="button"
-          @click="roleTab = 'empresa'"
-          class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all"
-          :class="roleTab === 'empresa' 
-            ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm' 
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
-        >
-          <i class="fa-solid fa-building mr-1.5"></i> Empresa / Propietario
-        </button>
-      </div>
+      <!-- Encabezado de Bienvenida -->
+      <h1 class="welcome-title" id="txt-title">{{ isRegister ? 'Crear Cuenta' : 'Bienvenido' }}</h1>
+      <p class="welcome-subtitle" id="txt-subtitle">
+        {{ subtitleText }}
+      </p>
 
-      <!-- Action Toggle: Iniciar Sesión / Registrarse -->
-      <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-3">
-        <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">
-          {{ isRegister ? 'Crear Cuenta' : 'Iniciar Sesión' }}
-        </h2>
-        <button
-          type="button"
-          @click="toggleMode"
-          class="text-xs text-sky-600 dark:text-sky-400 hover:underline font-semibold"
-        >
-          {{ isRegister ? '¿Ya tienes cuenta? Ingresa' : '¿No tienes cuenta? Regístrate' }}
-        </button>
+      <!-- Caja de Alerta -->
+      <div
+        v-if="alertMessage"
+        class="alert-box"
+        :class="alertIsSuccess ? 'success' : 'error'"
+        id="auth-alert"
+      >
+        {{ alertMessage }}
       </div>
 
       <!-- Formulario -->
-      <form @submit.prevent="handleSubmit" class="space-y-4">
-        <!-- Nombre (solo registro) -->
-        <div v-if="isRegister">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-            Nombre Completo
+      <form id="login-form" @submit.prevent="handleFormSubmit">
+        <!-- Campo Nombre (solo visible cuando se elige Registrarse) -->
+        <div v-if="isRegister" class="form-field" id="field-nombre">
+          <label class="field-label" id="label-nombre">
+            {{ currentPortal === 'empresa' ? 'Nombre de la Empresa o Razón Social' : 'Nombre completo' }}
           </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-              <i class="fa-regular fa-user text-sm"></i>
-            </span>
-            <input
-              v-model="form.nombre"
-              type="text"
-              required
-              placeholder="Juan Pérez"
-              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 transition-colors"
-            />
-          </div>
+          <input
+            v-model="nombre"
+            type="text"
+            class="input-clean"
+            id="input-nombre"
+            :placeholder="currentPortal === 'empresa' ? 'Ej. Estacionamientos San José S.A.C.' : 'Ej. Juan Pérez'"
+            required
+          />
         </div>
 
-        <!-- Email -->
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-            Correo Electrónico
-          </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-              <i class="fa-regular fa-envelope text-sm"></i>
-            </span>
-            <input
-              v-model="form.email"
-              type="email"
-              required
-              placeholder="tu@correo.com"
-              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 transition-colors"
-            />
-          </div>
+        <!-- Campo Correo Electrónico -->
+        <div class="form-field">
+          <label class="field-label">Correo electrónico*</label>
+          <input
+            v-model="email"
+            type="email"
+            class="input-clean"
+            id="input-email"
+            placeholder="correo@ejemplo.com"
+            required
+            autofocus
+          />
         </div>
 
-        <!-- Contraseña -->
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-            Contraseña
-          </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-              <i class="fa-solid fa-lock text-sm"></i>
+        <!-- Campo Contraseña -->
+        <div class="form-field" id="field-password">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label class="field-label" style="margin-bottom:0;">Contraseña*</label>
+            <span id="label-role-badge" style="font-size:0.75rem; color:#64748b; font-weight:600;">
+              {{ currentPortal === 'empresa' ? 'Propietario / Operador' : 'Conductor' }}
             </span>
-            <input
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              required
-              placeholder="••••••••"
-              class="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 transition-colors"
-            />
-            <button
-              type="button"
-              @click="showPassword = !showPassword"
-              class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
-            </button>
           </div>
+          <input
+            v-model="password"
+            type="password"
+            class="input-clean"
+            id="input-password"
+            placeholder="••••••••"
+            required
+          />
         </div>
 
-        <!-- Confirmación de contraseña (solo registro) -->
-        <div v-if="isRegister">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-            Confirmar Contraseña
-          </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-              <i class="fa-solid fa-lock-open text-sm"></i>
-            </span>
-            <input
-              v-model="form.confirmPassword"
-              type="password"
-              required
-              placeholder="••••••••"
-              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 transition-colors"
-            />
-          </div>
-        </div>
-
-        <!-- Botón Submit -->
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full mt-2 py-3 px-4 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-sky-600/30 transition-all flex items-center justify-center gap-2"
-        >
-          <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
-          <span>{{ isRegister ? 'Crear Cuenta' : 'Iniciar Sesión' }}</span>
+        <!-- Botón Principal "Continuar / Registrarse" -->
+        <button type="submit" class="btn-continue" id="btn-submit" :disabled="loading">
+          <span v-if="!loading" id="btn-label">{{ isRegister ? 'Registrarse' : 'Continuar' }}</span>
+          <div v-else class="spinner" id="btn-spinner" style="display:inline-block;"></div>
         </button>
       </form>
 
-      <!-- Indicadores de Credenciales Rápidas para Demo -->
-      <div v-if="!isRegister" class="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
-        <p class="font-semibold text-slate-700 dark:text-slate-300 mb-1">Accesos de demostración:</p>
-        <div class="grid grid-cols-2 gap-2 text-[11px]">
-          <button @click="fillCreds('admin@smartpark.com', 'Marco7057')" type="button" class="text-left p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700">
-            👑 Admin Global
+      <!-- Texto "¿No tiene una cuenta? Regístrese" -->
+      <div class="toggle-account-wrap">
+        <span id="toggle-prompt">{{ isRegister ? '¿Ya tiene una cuenta?' : '¿No tiene una cuenta?' }}</span>
+        <a @click="toggleMode" id="toggle-link">{{ isRegister ? ' Iniciar sesión' : ' Regístrese' }}</a>
+      </div>
+
+      <!-- Bloque Google (Solo para Conductores en modo login) -->
+      <div v-if="currentPortal === 'conductor'" id="google-block">
+        <div class="divider-line">
+          <span>o</span>
+        </div>
+
+        <!-- Botón Oficial "Continuar con Google" -->
+        <button type="button" class="btn-google" @click="handleGoogleSignIn">
+          <svg class="google-icon" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          Continuar con Google
+        </button>
+      </div>
+
+      <!-- Accesos rápidos para desarrollo / pruebas -->
+      <div v-if="!isRegister" class="mt-6 pt-3 border-t border-slate-200 dark:border-slate-800 text-left">
+        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Accesos de demostración:</p>
+        <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+          <button @click="quickFill('admin@smartpark.com', 'Marco7057')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
+            👑 Admin
           </button>
-          <button @click="fillCreds('propietario@test.com', 'propietario123')" type="button" class="text-left p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700">
+          <button @click="quickFill('propietario@test.com', 'propietario123', 'empresa')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
             🏢 Propietario
           </button>
-          <button @click="fillCreds('operador@test.com', 'operador123')" type="button" class="text-left p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700">
+          <button @click="quickFill('operador@test.com', 'operador123', 'empresa')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
             🅿️ Operador
           </button>
-          <button @click="fillCreds('conductor@test.com', 'conductor123')" type="button" class="text-left p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700">
+          <button @click="quickFill('conductor@test.com', 'conductor123', 'conductor')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
             🚗 Conductor
           </button>
         </div>
+      </div>
+
+      <div class="footer-note">
+        SmartPark Enterprise Platform &copy; 2026
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { showToast } from '@/components/ToastAlert.vue'
-import ThemeToggle from '@/components/ThemeToggle.vue'
+import api, { URLS } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 
-const roleTab = ref('conductor')
+const currentPortal = ref('conductor') // 'conductor' | 'empresa'
 const isRegister = ref(false)
-const showPassword = ref(false)
 const loading = ref(false)
 
-const form = ref({
-  nombre: '',
-  email: '',
-  password: '',
-  confirmPassword: ''
+const nombre = ref('')
+const email = ref('')
+const password = ref('')
+
+const alertMessage = ref('')
+const alertIsSuccess = ref(false)
+
+const isDark = computed(() => themeStore.isDark)
+
+const toggleTheme = () => {
+  themeStore.toggleTheme()
+}
+
+const subtitleText = computed(() => {
+  if (currentPortal.value === 'empresa') {
+    return 'Acceso a la plataforma de gestión y cobro para dueños de sedes'
+  }
+  return 'Iniciar sesión en SmartPark para reservar y estacionar'
 })
 
 onMounted(() => {
-  // En login vista clara por defecto
-  themeStore.initTheme(false)
+  themeStore.initTheme()
+
   if (route.query.mode === 'register') {
     isRegister.value = true
   }
 })
 
-const toggleMode = () => {
+function showAlert(msg, isSuccess = false) {
+  alertMessage.value = msg
+  alertIsSuccess.value = isSuccess
+}
+
+function hideAlert() {
+  alertMessage.value = ''
+}
+
+function selectPortal(portal) {
+  currentPortal.value = portal
+  hideAlert()
+}
+
+function toggleMode() {
   isRegister.value = !isRegister.value
+  hideAlert()
   router.replace({ query: isRegister.value ? { mode: 'register' } : {} })
 }
 
-const fillCreds = (email, pass) => {
-  form.value.email = email
-  form.value.password = pass
+function quickFill(em, pw, portal = null) {
+  email.value = em
+  password.value = pw
+  if (portal) selectPortal(portal)
 }
 
-const handleSubmit = async () => {
+function redirectByRole(rol) {
+  const r = (rol || '').toLowerCase()
+  if (r === 'admin') router.push('/admin')
+  else if (r === 'propietario') router.push('/propietario')
+  else if (r === 'operador') router.push('/operador')
+  else router.push('/dashboard')
+}
+
+async function handleFormSubmit() {
+  hideAlert()
   loading.value = true
+
   try {
-    if (isRegister.value) {
-      if (form.value.password !== form.value.confirmPassword) {
-        showToast('Las contraseñas no coinciden', 'error')
-        loading.value = false
-        return
-      }
-      const rolTarget = roleTab.value === 'empresa' ? 'propietario' : 'conductor'
-      await authStore.registro({
-        nombre: form.value.nombre,
-        email: form.value.email,
-        password: form.value.password,
-        rol: rolTarget
+    if (!isRegister.value) {
+      // Iniciar sesión con email + password
+      const res = await api.post(`${URLS.usuarios}/usuarios/login`, {
+        email: email.value.trim(),
+        password: password.value
       })
-      showToast('Registro exitoso. Iniciando sesión...', 'success')
+      const data = res.data
+
+      // Guardar sesión compatible tanto para Vue como para el frontend clásico
+      authStore.setAuth(data.access_token, data.user)
+      localStorage.setItem('jwt_token', data.access_token)
+      localStorage.setItem('user_info', JSON.stringify(data.user))
+
+      showAlert('¡Inicio de sesión exitoso! Redirigiendo...', true)
+
+      setTimeout(() => {
+        redirectByRole(data.user.rol)
+      }, 700)
+
+    } else {
+      // Registro
+      const rol = (currentPortal.value === 'empresa') ? 'propietario' : 'conductor'
+      await api.post(`${URLS.usuarios}/usuarios/registro`, {
+        nombre: nombre.value.trim(),
+        email: email.value.trim(),
+        password: password.value,
+        rol
+      })
+
+      showAlert('¡Cuenta creada con éxito! Ingresando...', true)
+
+      // Login automático inmediato
+      const loginRes = await api.post(`${URLS.usuarios}/usuarios/login`, {
+        email: email.value.trim(),
+        password: password.value
+      })
+      const loginData = loginRes.data
+
+      authStore.setAuth(loginData.access_token, loginData.user)
+      localStorage.setItem('jwt_token', loginData.access_token)
+      localStorage.setItem('user_info', JSON.stringify(loginData.user))
+
+      setTimeout(() => {
+        redirectByRole(loginData.user.rol)
+      }, 700)
     }
-
-    // Login
-    const user = await authStore.login(form.value.email, form.value.password)
-    showToast(`¡Bienvenido, ${user.nombre}!`, 'success')
-
-    // Redirigir según rol
-    const rol = (user.rol || '').toLowerCase()
-    if (rol === 'admin') router.push('/admin')
-    else if (rol === 'propietario') router.push('/propietario')
-    else if (rol === 'operador') router.push('/operador')
-    else router.push('/dashboard')
-
   } catch (err) {
-    const detail = err.response?.data?.detail || 'Error en las credenciales o en el servidor'
-    showToast(typeof detail === 'string' ? detail : 'Error de autenticación', 'error')
+    const errorMsg = err.response?.data?.detail || err.message || 'Error en las credenciales'
+    showAlert(typeof errorMsg === 'string' ? errorMsg : 'Error al procesar la solicitud', false)
   } finally {
     loading.value = false
   }
 }
+
+// Acceso con Google
+async function handleGoogleSignIn() {
+  hideAlert()
+  const emailPrompt = prompt("Acceso rápido con Google:\nIngresa tu correo de Gmail/Google:", "conductor@gmail.com")
+  if (!emailPrompt) return
+
+  const cleanEmail = emailPrompt.trim()
+  const derivedName = cleanEmail.split('@')[0]
+
+  try {
+    const res = await api.post(`${URLS.usuarios}/usuarios/sso-login`, {
+      email: cleanEmail,
+      nombre: derivedName
+    })
+    const data = res.data
+
+    authStore.setAuth(data.access_token, data.user)
+    localStorage.setItem('jwt_token', data.access_token)
+    localStorage.setItem('user_info', JSON.stringify(data.user))
+
+    showAlert(`¡Bienvenido ${data.user.nombre}! Redirigiendo...`, true)
+    setTimeout(() => {
+      redirectByRole(data.user.rol)
+    }, 700)
+  } catch (err) {
+    const errorMsg = err.response?.data?.detail || err.message || 'Error de autenticación con Google'
+    showAlert(errorMsg, false)
+  }
+}
 </script>
+
+<style scoped>
+.login-page-wrapper {
+  --primary-blue: #0284c7;
+  --primary-hover: #0369a1;
+  --text-dark: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --bg-page: #f8fafc;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --portal-bg: #f1f5f9;
+  --google-btn-bg: #ffffff;
+  --google-btn-hover: #f8fafc;
+  --google-btn-border: #cbd5e1;
+  --google-btn-text: #334155;
+  --shadow-card: 0 10px 30px -5px rgba(15, 23, 42, 0.06), 0 20px 25px -5px rgba(15, 23, 42, 0.03);
+
+  background-color: var(--bg-page);
+  background-image: 
+      radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-dark);
+  padding: 24px 16px;
+  position: relative;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+.login-page-wrapper.dark-mode {
+  --primary-blue: #38bdf8;
+  --primary-hover: #0284c7;
+  --text-dark: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --bg-page: #0b0f19;
+  --card-bg: rgba(30, 41, 59, 0.85);
+  --input-bg: rgba(15, 23, 42, 0.7);
+  --portal-bg: rgba(15, 23, 42, 0.8);
+  --google-btn-bg: rgba(15, 23, 42, 0.6);
+  --google-btn-hover: rgba(30, 41, 59, 0.9);
+  --google-btn-border: rgba(255, 255, 255, 0.15);
+  --google-btn-text: #f1f5f9;
+  --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Botón de alternancia de Tema (Modo Claro / Oscuro) */
+.theme-toggle-fixed {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-dark);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  z-index: 100;
+  transition: all 0.2s ease;
+}
+.theme-toggle-fixed:hover {
+  border-color: var(--primary-blue);
+}
+
+/* Selector de perfil superior (Conductor vs Empresa) */
+.portal-tabs {
+  display: inline-flex;
+  background: var(--portal-bg);
+  padding: 4px;
+  border-radius: 9999px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+}
+
+.portal-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portal-tab-btn.active {
+  background: var(--card-bg);
+  color: var(--primary-blue);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Tarjeta Blanca Limpia Minimalista */
+.auth-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 36px;
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-color);
+  text-align: center;
+  position: relative;
+}
+
+/* Logo estilo marca moderna */
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.3rem;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+.logo-text {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  letter-spacing: -0.5px;
+}
+
+.logo-text span {
+  color: var(--primary-blue);
+}
+
+.brand-subline {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: -6px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+}
+
+.welcome-title {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+  letter-spacing: -0.5px;
+}
+
+.welcome-subtitle {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+  line-height: 1.45;
+}
+
+/* Formulario con campos limpios */
+.form-field {
+  text-align: left;
+  margin-bottom: 18px;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.input-clean {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  background: var(--input-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.input-clean::placeholder {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.input-clean:focus {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+/* Botón Continuar Principal */
+.btn-continue {
+  width: 100%;
+  height: 50px;
+  background: var(--primary-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+  margin-top: 8px;
+}
+
+.btn-continue:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+}
+
+.btn-continue:active {
+  transform: translateY(0);
+}
+
+/* Links de alternancia (¿No tiene una cuenta? Regístrese) */
+.toggle-account-wrap {
+  margin: 22px 0 20px 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.toggle-account-wrap a {
+  color: var(--primary-blue);
+  font-weight: 700;
+  text-decoration: none;
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.toggle-account-wrap a:hover {
+  text-decoration: underline;
+}
+
+/* Separador "O" */
+.divider-line {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.divider-line::before,
+.divider-line::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.divider-line span {
+  padding: 0 14px;
+}
+
+/* Botón de Google Auténtico */
+.btn-google {
+  width: 100%;
+  height: 48px;
+  background: var(--google-btn-bg);
+  color: var(--google-btn-text);
+  border: 1.5px solid var(--google-btn-border);
+  border-radius: 10px;
+  font-size: 0.93rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-google:hover {
+  background: var(--google-btn-hover);
+  border-color: var(--primary-blue);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Alertas de error/éxito */
+.alert-box {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.alert-box.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.alert-box.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+/* Loader */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.footer-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 24px;
+}
+</style>

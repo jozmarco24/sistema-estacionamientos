@@ -7,6 +7,9 @@ export const reservasService = {
   getReserva(id) {
     return api.get(`${URLS.reservas}/reservas/${id}`)
   },
+  getReservasPorUsuario(usuarioId) {
+    return api.get(`${URLS.reservas}/reservas/usuario/${usuarioId}`)
+  },
   cotizar(espacioId, inicio, fin) {
     let url = `${URLS.reservas}/reservas/cotizar?espacio_id=${espacioId}`
     if (inicio) url += `&fecha_inicio=${encodeURIComponent(inicio)}`
