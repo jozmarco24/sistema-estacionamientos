@@ -14,7 +14,7 @@ const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', component: LoginView },
   { path: '/registro', redirect: '/login?mode=register' },
-  { path: '/dashboard', component: DashboardView, meta: { requiresAuth: true, roles: ['conductor', 'cliente'] } },
+  { path: '/dashboard', component: DashboardView, meta: { requiresAuth: true, roles: ['conductor'] } },
   { path: '/admin', component: AdminView, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/operador', component: OperadorView, meta: { requiresAuth: true, roles: ['operador'] } },
   { path: '/propietario', component: PropietarioView, meta: { requiresAuth: true, roles: ['propietario'] } },
