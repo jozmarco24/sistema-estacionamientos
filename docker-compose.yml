@@ -1,4 +1,4 @@
-﻿services:
+services:
   db:
     image: postgres:15-alpine
     container_name: postgres_estacionamientos
@@ -204,37 +204,6 @@
         max-size: "10m"
         max-file: "3"
 
-  frontend:
-    build: ./frontend
-    container_name: frontend_estacionamientos
-    restart: always
-    ports:
-      - "8080:80"
-    environment:
-      - TZ=America/Lima
-    depends_on:
-      usuarios:
-        condition: service_healthy
-      estacionamientos:
-        condition: service_healthy
-      reservas:
-        condition: service_healthy
-      pagos:
-        condition: service_healthy
-    networks:
-      - estacionamientos_net
-    # MEJORA #25: LÃ­mites de recursos
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: "0.25"
-    # MEJORA #30: Logging controlado
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   frontend-vue:
     build: ./frontend-vue
