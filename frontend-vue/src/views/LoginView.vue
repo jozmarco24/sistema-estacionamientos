@@ -86,12 +86,7 @@
 
         <!-- Campo Contraseña -->
         <div class="form-field" id="field-password">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <label class="field-label" style="margin-bottom:0;">Contraseña*</label>
-            <span class="role-badge" id="label-role-badge">
-              {{ currentPortal === 'empresa' ? 'Propietario / Operador' : 'Conductor' }}
-            </span>
-          </div>
+          <label class="field-label">Contraseña*</label>
           <input
             v-model="password"
             type="password"

@@ -10,7 +10,7 @@ El sistema está compuesto por **4 microservicios backend independientes**, un *
 
 | Servicio / Componente | Puerto Externo | Esquema PostgreSQL | Descripción |
 |---|---|---|---|
-| **Frontend Nginx Proxy** | `8080` | N/A | Interfaz web unificada y Gateway Reverse Proxy hacia los microservicios (`/api/...`). |
+| **Frontend Vue (Nginx)** | `8081` | N/A | Interfaz web SPA (Vue 3 + Tailwind CSS + Pinia) y contenedor de producción. |
 | **PostgreSQL 15** | `5432` | Base `db_sistema_estacionamientos` | Base relacional con esquemas aislados por dominio. |
 | **Usuarios** | `8001` | `db_usuarios` | Gestión de usuarios, autenticación JWT, roles (`conductor`, `propietario`, `operador`, `admin`), planes SaaS. |
 | **Estacionamientos** | `8002` | `db_estacionamientos` | Sedes geolocalizadas (Haversine), espacios diferenciados por vehículo (`auto`, `moto`), tarifas día/noche e incidencias. |
@@ -45,7 +45,7 @@ docker compose up --build -d
 ```
 
 ### Paso 2: Acceso a la Plataforma Web
-- 🌐 **Portal Web Completo**: [http://localhost:8080](http://localhost:8080)
+- 🌐 **Portal Web Completo**: [http://localhost:8081](http://localhost:8081)
   - Conductor: Búsqueda interactiva en mapa Leaflet, selección de espacio, cotización y pago con Culqi.
   - Propietario: Gestión de llaves Culqi, sedes, slots, empleados y suscripciones SaaS.
   - Operador: Caseta de control, validación de QR y tickets.
@@ -68,10 +68,10 @@ pytest tests/test_culqi_flow.py -v
 
 Cada microservicio expone su propia documentación interactiva en los siguientes enlaces:
 
-- 👤 **Usuarios**: [http://localhost:8001/docs](http://localhost:8001/docs) o [http://localhost:8080/api/usuarios/docs](http://localhost:8080/api/usuarios/docs)
-- 🅿️ **Estacionamientos**: [http://localhost:8002/docs](http://localhost:8002/docs) o [http://localhost:8080/api/estacionamientos/docs](http://localhost:8080/api/estacionamientos/docs)
-- 📅 **Reservas**: [http://localhost:8003/docs](http://localhost:8003/docs) o [http://localhost:8080/api/reservas/docs](http://localhost:8080/api/reservas/docs)
-- 💳 **Pagos**: [http://localhost:8004/docs](http://localhost:8004/docs) o [http://localhost:8080/api/pagos/docs](http://localhost:8080/api/pagos/docs)
+- 👤 **Usuarios**: [http://localhost:8001/docs](http://localhost:8001/docs)
+- 🅿️ **Estacionamientos**: [http://localhost:8002/docs](http://localhost:8002/docs)
+- 📅 **Reservas**: [http://localhost:8003/docs](http://localhost:8003/docs)
+- 💳 **Pagos**: [http://localhost:8004/docs](http://localhost:8004/docs)
 
 ---
 

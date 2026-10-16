@@ -50,7 +50,7 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@smartpark.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - PAGOS_SERVICE_URL=http://pagos:8004
-      - ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8081
+      - ALLOWED_ORIGINS=http://localhost:8081
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     depends_on:
       db:
@@ -91,7 +91,7 @@ services:
       - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY}
       - USUARIOS_SERVICE_URL=http://usuarios:8001
       - PAGOS_SERVICE_URL=http://pagos:8004
-      - ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8081
+      - ALLOWED_ORIGINS=http://localhost:8081
     depends_on:
       db:
         condition: service_healthy
@@ -132,7 +132,7 @@ services:
       - ESTACIONAMIENTOS_SERVICE_URL=http://estacionamientos:8002
       - PAGOS_SERVICE_URL=http://pagos:8004
       - USUARIOS_SERVICE_URL=http://usuarios:8001
-      - ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8081
+      - ALLOWED_ORIGINS=http://localhost:8081
     depends_on:
       db:
         condition: service_healthy
@@ -180,7 +180,7 @@ services:
       - RESERVAS_SERVICE_URL=http://reservas:8003
       - USUARIOS_SERVICE_URL=http://usuarios:8001
       - ESTACIONAMIENTOS_SERVICE_URL=http://estacionamientos:8002
-      - ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8081
+      - ALLOWED_ORIGINS=http://localhost:8081
     depends_on:
       db:
         condition: service_healthy
