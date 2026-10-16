@@ -191,7 +191,7 @@ const fetchEspacios = async () => {
 
 const fetchVehiculos = async () => {
   try {
-    const res = await usuariosService.getVehiculos()
+    const res = await usuariosService.getMisVehiculos()
     const vehiculos = Array.isArray(res.data) ? res.data : (res.data?.data || [])
     misVehiculos.value = vehiculos
     if (vehiculos.length > 0) {

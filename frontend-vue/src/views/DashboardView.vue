@@ -77,15 +77,54 @@
               <span style="font-weight:700; font-size:1.05rem;">
                 <i class="fa-solid fa-compass" style="color:var(--accent);"></i> Sedes Cercanas
               </span>
-              <span class="distancia-badge">{{ sedesList.length }} disponibles</span>
+              <span class="distancia-badge">{{ sedesFiltradas.length }} disponibles</span>
             </div>
-            <div style="margin-bottom:12px;">
+            <div style="margin-bottom:10px;">
               <input
                 v-model="searchSedesInput"
                 type="text"
                 placeholder="Buscar sede o dirección..."
                 style="width:100%; background:rgba(15,23,42,0.6); border:1px solid var(--glass-border); padding:8px 12px; border-radius:10px; color:var(--text-main); font-size:0.85rem; outline:none;"
               >
+            </div>
+            <!-- Filtros Chips -->
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              <button
+                type="button"
+                @click="filtroCerca = !filtroCerca"
+                :class="[
+                  'px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-200 border cursor-pointer inline-flex items-center gap-1 select-none',
+                  filtroCerca
+                    ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ]"
+              >
+                <span>📍</span> Cerca
+              </button>
+              <button
+                type="button"
+                @click="filtroPrecio = !filtroPrecio"
+                :class="[
+                  'px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-200 border cursor-pointer inline-flex items-center gap-1 select-none',
+                  filtroPrecio
+                    ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ]"
+              >
+                <span>💰</span> Precio
+              </button>
+              <button
+                type="button"
+                @click="filtroDisponibles = !filtroDisponibles"
+                :class="[
+                  'px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-200 border cursor-pointer inline-flex items-center gap-1 select-none',
+                  filtroDisponibles
+                    ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ]"
+              >
+                <span>✅</span> Disponibles
+              </button>
             </div>
             <div class="sede-list">
               <div
@@ -120,7 +159,7 @@
                 </div>
               </div>
               <p v-if="sedesFiltradas.length === 0" style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:20px;">
-                No se encontraron sedes cercanas.
+                No hay sedes con ese filtro.
               </p>
             </div>
           </div>
@@ -311,13 +350,67 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return parseFloat((R * c).toFixed(2))
 }
 
+const RADIO_CERCA_KM = 5
+const filtroCerca = ref(false)
+const filtroPrecio = ref(false)
+const filtroDisponibles = ref(false)
+
 const sedesFiltradas = computed(() => {
-  if (!searchSedesInput.value.trim()) return sedesList.value
+  // Trabajar sobre una copia sin mutar el arreglo original
+  let list = [...sedesList.value]
+
+  // Filtro por texto de búsqueda (nombre o dirección)
   const q = searchSedesInput.value.toLowerCase().trim()
-  return sedesList.value.filter(s =>
-    (s.nombre && s.nombre.toLowerCase().includes(q)) ||
-    (s.direccion && s.direccion.toLowerCase().includes(q))
-  )
+  if (q) {
+    list = list.filter(s =>
+      (s.nombre && s.nombre.toLowerCase().includes(q)) ||
+      (s.direccion && s.direccion.toLowerCase().includes(q))
+    )
+  }
+
+  // Filtro Cerca: distancia <= 5 km
+  if (filtroCerca.value) {
+    list = list.filter(s => {
+      const dist = Number(s.distancia_km)
+      return !isNaN(dist) && dist <= RADIO_CERCA_KM
+    })
+  }
+
+  // Filtro Disponibles: solo sedes con espacios libres
+  if (filtroDisponibles.value) {
+    list = list.filter(s => {
+      // Si la sede tiene propiedad de espacios libres contabilizados
+      if (s.espacios_libres !== undefined && s.espacios_libres !== null) {
+        return Number(s.espacios_libres) > 0
+      }
+      if (s.espacios_disponibles !== undefined && s.espacios_disponibles !== null) {
+        return Number(s.espacios_disponibles) > 0
+      }
+      // Si tiene array de espacios
+      if (Array.isArray(s.espacios)) {
+        return s.espacios.some(e => e.estado === 'libre')
+      }
+      // Por defecto, sedes activas
+      return s.activa !== false
+    })
+  }
+
+  // Ordenamiento: si filtroPrecio está activo, ordenar por tarifa ascendente; sino por distancia
+  if (filtroPrecio.value) {
+    list.sort((a, b) => {
+      const tarifaA = Number(a.tarifa_hora !== undefined && a.tarifa_hora !== null ? a.tarifa_hora : 5.0)
+      const tarifaB = Number(b.tarifa_hora !== undefined && b.tarifa_hora !== null ? b.tarifa_hora : 5.0)
+      return tarifaA - tarifaB
+    })
+  } else {
+    list.sort((a, b) => {
+      const distA = Number(a.distancia_km !== undefined && a.distancia_km !== null ? a.distancia_km : 999999)
+      const distB = Number(b.distancia_km !== undefined && b.distancia_km !== null ? b.distancia_km : 999999)
+      return distA - distB
+    })
+  }
+
+  return list
 })
 
 function switchSection(secId) {
