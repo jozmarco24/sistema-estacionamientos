@@ -51,6 +51,7 @@ function initGoogleButton() {
       // Limpiar contenedor previo si existe
       googleBtnRef.value.innerHTML = ''
 
+      const containerWidth = Math.min(googleBtnRef.value?.offsetWidth || 340, 400)
       window.google.accounts.id.renderButton(googleBtnRef.value, {
         type: 'standard',
         theme: 'outline',
@@ -58,7 +59,7 @@ function initGoogleButton() {
         text: 'continue_with',
         shape: 'rectangular',
         logo_alignment: 'left',
-        width: '100%',
+        width: containerWidth > 0 ? containerWidth : 340,
         locale: 'es'
       })
     } catch (e) {
