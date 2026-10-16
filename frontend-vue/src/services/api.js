@@ -16,9 +16,11 @@ api.interceptors.response.use(
   err => {
     if (err.response?.status === 401) {
       const auth = useAuthStore()
-      auth.logout()
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      if (auth.token) {
+        auth.logout()
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
     }
     return Promise.reject(err)

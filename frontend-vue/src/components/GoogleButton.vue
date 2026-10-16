@@ -39,14 +39,24 @@ function initGoogleButton() {
     return
   }
 
+  // Asignar el handler global para el callback actual
+  window.__gsiHandler = handleCredentialResponse
+
   if (window.google?.accounts?.id && googleBtnRef.value) {
     try {
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-        auto_select: false,
-        cancel_on_tap_outside: true
-      })
+      if (!window.__gsiInit) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (res) => {
+            if (typeof window.__gsiHandler === 'function') {
+              window.__gsiHandler(res)
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true
+        })
+        window.__gsiInit = true
+      }
 
       // Limpiar contenedor previo si existe
       googleBtnRef.value.innerHTML = ''
@@ -92,6 +102,9 @@ onBeforeUnmount(() => {
   if (pollInterval) {
     clearInterval(pollInterval)
     pollInterval = null
+  }
+  if (window.__gsiHandler === handleCredentialResponse) {
+    window.__gsiHandler = null
   }
 })
 </script>

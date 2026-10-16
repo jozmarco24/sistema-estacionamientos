@@ -16,6 +16,9 @@ export const reservasService = {
     if (fin) url += `&fecha_fin=${encodeURIComponent(fin)}`
     return api.get(url)
   },
+  cotizarReserva(espacioId, inicio, fin) {
+    return this.cotizar(espacioId, inicio, fin)
+  },
   crearReserva(data) {
     return api.post(`${URLS.reservas}/reservas/`, data)
   },

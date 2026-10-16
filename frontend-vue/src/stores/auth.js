@@ -2,10 +2,21 @@ import { defineStore } from 'pinia'
 import api, { URLS } from '@/services/api'
 
 export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    token: localStorage.getItem('smartpark-token') || '',
-    user: JSON.parse(localStorage.getItem('smartpark-user') || 'null'),
-  }),
+  state: () => {
+    let initialUser = null
+    try {
+      const rawUser = localStorage.getItem('smartpark-user')
+      if (rawUser) initialUser = JSON.parse(rawUser)
+    } catch (e) {
+      console.warn('Error al parsear smartpark-user desde localStorage:', e)
+      initialUser = null
+    }
+
+    return {
+      token: localStorage.getItem('smartpark-token') || '',
+      user: initialUser,
+    }
+  },
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
     isAdmin:         (state) => state.user?.rol === 'admin',
@@ -40,10 +51,15 @@ export const useAuthStore = defineStore('auth', {
     },
     loadFromStorage() {
       const token = localStorage.getItem('smartpark-token')
-      const user  = localStorage.getItem('smartpark-user')
-      if (token && user) {
+      const userStr = localStorage.getItem('smartpark-user')
+      if (token && userStr) {
         this.token = token
-        this.user  = JSON.parse(user)
+        try {
+          this.user = JSON.parse(userStr)
+        } catch (e) {
+          console.warn('Error al parsear user en loadFromStorage:', e)
+          this.user = null
+        }
       }
     }
   }
