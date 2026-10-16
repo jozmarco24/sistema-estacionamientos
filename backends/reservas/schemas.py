@@ -35,3 +35,29 @@ class ReservaResponse(BaseModel):
 class CancelarReservaResponse(BaseModel):
     mensaje: str
     reserva: ReservaResponse
+
+class WalkinCreate(BaseModel):
+    espacio_id: int
+    placa_vehiculo: str
+    tipo_vehiculo: Optional[str] = "auto"  # "auto" | "moto"
+    observacion: Optional[str] = None
+
+class WalkinResponse(BaseModel):
+    id: int
+    espacio_id: int
+    placa_vehiculo: str
+    estado: EstadoReserva
+    fecha_inicio: datetime
+    mensaje: str = "Ingreso walk-in registrado correctamente"
+
+    class Config:
+        from_attributes = True
+
+class CobrarCasetaResponse(BaseModel):
+    reserva_id: int
+    placa_vehiculo: str
+    monto_cobrado: float
+    duracion_horas: float
+    fecha_inicio: datetime
+    fecha_salida: datetime
+    mensaje: str = "Cobro registrado y espacio liberado"

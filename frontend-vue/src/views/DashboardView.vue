@@ -425,7 +425,7 @@ function renderSedesEnMapa() {
       const tiempoAproxMin = Math.max(2, Math.round(s.distancia_km * 2.8))
       const marker = L.marker([s.latitud, s.longitud])
       marker.bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:200px;">
+        <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:210px;">
           <b style="font-size:1rem; color:#0284c7;"><i class="fa-solid fa-square-parking"></i> ${s.nombre}</b>
           <p style="font-size:0.8rem; color:#64748b; margin:4px 0;">${s.direccion}</p>
           <div style="display:flex; justify-content:space-between; margin: 6px 0; font-size:0.8rem; font-weight:700;">
@@ -433,7 +433,10 @@ function renderSedesEnMapa() {
             <span style="color:#f59e0b;"><i class="fa-solid fa-clock"></i> ~${tiempoAproxMin} min</span>
           </div>
           <div style="display:flex; gap:6px; margin-top:8px;">
-            <a href="/reserva?sede_id=${s.id}" style="width:100%; text-align:center; background:#0284c7; color:#fff; text-decoration:none; padding:7px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
+            <button onclick="window.trazarRutaDesdePopup(${s.latitud}, ${s.longitud}, '${s.nombre.replace(/'/g, "\\'")}')" style="flex:1; background:rgba(2,132,199,0.15); border:1px solid rgba(2,132,199,0.4); color:#0284c7; padding:7px 8px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">
+              <i class="fa-solid fa-diamond-turn-right"></i> Ruta
+            </button>
+            <a href="/reserva?sede_id=${s.id}" style="flex:1; text-align:center; background:#0284c7; color:#fff; text-decoration:none; padding:7px 8px; border-radius:6px; font-weight:700; font-size:0.8rem;">
               Reservar
             </a>
           </div>
@@ -444,67 +447,127 @@ function renderSedesEnMapa() {
     }
   })
 
+  // Exponer función para popups HTML de Leaflet
+  window.trazarRutaDesdePopup = (lat, lon, nombre) => {
+    trazarRuta(lat, lon, nombre)
+  }
+
   if (coords.length > 1) {
     const bounds = L.latLngBounds(coords)
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 })
   }
 }
 
-async function trazarRuta(destLat, destLon, destNombre) {
+// ── Función: Dibujar ruta real por calles (OSRM - gratuito) ──
+async function dibujarRutaReal(userLat, userLng, sedeLat, sedeLng, destNombre = '') {
   if (!map) return
-  showToast(`Calculando mejor ruta hacia ${destNombre}...`)
-
-  routeBanner.destName = destNombre
+  if (destNombre) {
+    showToast(`Calculando mejor ruta hacia ${destNombre}...`)
+    routeBanner.destName = destNombre
+  }
   routeBanner.timeText = "Calculando..."
   routeBanner.distText = "Calculando..."
-  routeBanner.gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lon}&destination=${destLat},${destLon}&travelmode=driving`
+  routeBanner.gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${sedeLat},${sedeLng}&travelmode=driving`
   routeBanner.show = true
 
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lon},${userLocation.lat};${destLon},${destLat}?overview=full&geometries=geojson`
-    const res = await fetch(url)
-    const data = await res.json()
-
-    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-      const route = data.routes[0]
-      const distKm = (route.distance / 1000).toFixed(1)
-      const durationMin = Math.round(route.duration / 60)
-
-      routeBanner.distText = `${distKm} km`
-      routeBanner.timeText = `${durationMin} min aprox.`
-
-      if (activeRouteLayer) map.removeLayer(activeRouteLayer)
-
-      activeRouteLayer = L.geoJSON(route.geometry, {
-        style: {
-          color: '#06b6d4',
-          weight: 6,
-          opacity: 0.85,
-          lineCap: 'round'
-        }
-      }).addTo(map)
-
-      map.fitBounds(activeRouteLayer.getBounds(), { padding: [50, 50] })
-      showToast(`Ruta lista: ${distKm} km (~${durationMin} min en auto)`)
-    } else {
-      throw new Error("No se pudo obtener ruta detallada")
+    // Limpiar ruta anterior si existe
+    if (activeRouteLayer && map) {
+      map.removeLayer(activeRouteLayer)
+      activeRouteLayer = null
     }
-  } catch (e) {
-    const dKm = calcularDistanciaKm(userLocation.lat, userLocation.lon, destLat, destLon)
-    const durMin = Math.max(3, Math.round(dKm * 2.8))
 
+    // Llamar a OSRM (gratuito, sin API key, usa OpenStreetMap)
+    const url = `https://router.project-osrm.org/route/v1/driving/` +
+      `${userLng},${userLat};${sedeLng},${sedeLat}` +
+      `?overview=full&geometries=geojson`
+
+    const response = await fetch(url)
+    const data = await response.json()
+
+    if (data.code !== 'Ok' || !data.routes?.length) {
+      // Fallback: si OSRM falla, dibujar línea recta con aviso
+      console.warn('OSRM no disponible, usando línea recta como fallback')
+      const dKm = calcularDistanciaKm(userLat, userLng, sedeLat, sedeLng)
+      const durMin = Math.max(3, Math.round(dKm * 2.8))
+      routeBanner.distText = `${dKm} km`
+      routeBanner.timeText = `${durMin} min aprox.`
+
+      activeRouteLayer = L.polyline(
+        [[userLat, userLng], [sedeLat, sedeLng]],
+        {
+          color: '#3b82f6',
+          weight: 3,
+          opacity: 0.7,
+          dashArray: '8, 8'
+        }
+      ).addTo(map)
+
+      map.fitBounds(activeRouteLayer.getBounds(), { padding: [40, 40] })
+      showToast(`Ruta aproximada trazada: ~${durMin} min`)
+      return
+    }
+
+    // Extraer coordenadas de la ruta real
+    const coords = data.routes[0].geometry.coordinates.map(
+      ([lng, lat]) => [lat, lng] // OSRM devuelve [lng,lat], Leaflet usa [lat,lng]
+    )
+
+    // Datos del viaje
+    const distanciaKm = (data.routes[0].distance / 1000).toFixed(2)
+    const duracionMin = Math.round(data.routes[0].duration / 60)
+
+    // Actualizar banner reactivo
+    routeBanner.distText = `${distanciaKm} km`
+    routeBanner.timeText = `${duracionMin} min aprox.`
+
+    // Crear grupo para la capa de ruta (línea principal + decorativa doble línea)
+    const layerGroup = L.featureGroup()
+
+    // Línea base principal
+    L.polyline(coords, {
+      color: '#3b82f6', // azul
+      weight: 5,
+      opacity: 0.85,
+      lineJoin: 'round',
+      lineCap: 'round'
+    }).addTo(layerGroup)
+
+    // Línea decorativa encima (efecto doble línea)
+    L.polyline(coords, {
+      color: '#93c5fd',
+      weight: 2,
+      opacity: 0.6,
+      lineJoin: 'round'
+    }).addTo(layerGroup)
+
+    layerGroup.addTo(map)
+    activeRouteLayer = layerGroup
+
+    // Ajustar zoom para ver toda la ruta
+    map.fitBounds(layerGroup.getBounds(), { padding: [40, 40] })
+    showToast(`✅ Ruta real: ${distanciaKm} km (~${duracionMin} min)`)
+    console.log(`✅ Ruta real: ${distanciaKm}km, ~${duracionMin}min`)
+  } catch (error) {
+    console.error('Error al obtener ruta:', error)
+    const dKm = calcularDistanciaKm(userLat, userLng, sedeLat, sedeLng)
+    const durMin = Math.max(3, Math.round(dKm * 2.8))
     routeBanner.distText = `${dKm} km`
     routeBanner.timeText = `${durMin} min aprox.`
 
-    if (activeRouteLayer) map.removeLayer(activeRouteLayer)
-    activeRouteLayer = L.polyline([
-      [userLocation.lat, userLocation.lon],
-      [destLat, destLon]
-    ], { color: '#0284c7', weight: 4, dashArray: '8, 8' }).addTo(map)
+    // Fallback silencioso: línea recta
+    if (activeRouteLayer && map) map.removeLayer(activeRouteLayer)
+    activeRouteLayer = L.polyline(
+      [[userLat, userLng], [sedeLat, sedeLng]],
+      { color: '#3b82f6', weight: 3, dashArray: '6, 6', opacity: 0.6 }
+    ).addTo(map)
 
-    map.fitBounds(activeRouteLayer.getBounds(), { padding: [50, 50] })
-    showToast(`Ruta aproximada trazada: ~${durMin} min`)
+    map.fitBounds(activeRouteLayer.getBounds(), { padding: [40, 40] })
   }
+}
+
+async function trazarRuta(destLat, destLon, destNombre) {
+  await dibujarRutaReal(userLocation.lat, userLocation.lon, destLat, destLon, destNombre)
 }
 
 function limpiarRuta() {
