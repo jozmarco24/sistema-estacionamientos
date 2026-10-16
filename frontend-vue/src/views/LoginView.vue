@@ -133,24 +133,6 @@
         </button>
       </div>
 
-      <!-- Accesos rápidos para desarrollo / pruebas -->
-      <div v-if="!isRegister" class="mt-6 pt-3 border-t border-slate-200 dark:border-slate-800 text-left">
-        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Accesos de demostración:</p>
-        <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-          <button @click="quickFill('admin@smartpark.com', 'Marco7057')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
-            👑 Admin
-          </button>
-          <button @click="quickFill('propietario@test.com', 'propietario123', 'empresa')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
-            🏢 Propietario
-          </button>
-          <button @click="quickFill('operador@test.com', 'operador123', 'empresa')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
-            🅿️ Operador
-          </button>
-          <button @click="quickFill('conductor@test.com', 'conductor123', 'conductor')" type="button" class="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-left truncate">
-            🚗 Conductor
-          </button>
-        </div>
-      </div>
 
       <div class="footer-note">
         SmartPark Enterprise Platform &copy; 2026
@@ -217,11 +199,6 @@ function toggleMode() {
   router.replace({ query: isRegister.value ? { mode: 'register' } : {} })
 }
 
-function quickFill(em, pw, portal = null) {
-  email.value = em
-  password.value = pw
-  if (portal) selectPortal(portal)
-}
 
 function redirectByRole(rol) {
   const r = (rol || '').toLowerCase()
