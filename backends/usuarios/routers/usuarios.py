@@ -6,13 +6,16 @@ from datetime import datetime, timedelta, timezone
 import pytz
 from database import get_db
 from models import Usuario, RolUsuario, Vehiculo, Plan, Suscripcion, Membresia
+import os
+import secrets
 from schemas import (
     UsuarioCreate, UsuarioResponse, LoginRequest, TokenResponse, 
-    SSOLoginRequest, UsuarioUpdate, OperadorCreate, VehiculoCreate, 
+    SSOLoginRequest, GoogleAuthRequest, UsuarioUpdate, OperadorCreate, VehiculoCreate, 
     VehiculoResponse, PlanResponse, PlanCreate, SuscripcionResponse,
     CuentaBancariaUpdate, CambiarPlanRequest, MembresiaResponse
 )
-import secrets
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from auth import (
     hash_password,
     verify_password,
@@ -74,6 +77,81 @@ def sso_login(payload: SSOLoginRequest, db: Session = Depends(get_db)):
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="El inicio de sesión SSO simulado está deshabilitado por razones de seguridad. Utilice /login estándar."
+    )
+
+@router.post("/auth/google", response_model=TokenResponse)
+@router.post("/google", response_model=TokenResponse)
+def auth_google(request: Request, payload: GoogleAuthRequest, db: Session = Depends(get_db)):
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google login no configurado"
+        )
+
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            client_id
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de Google inválido o expirado"
+        )
+
+    if not idinfo.get("email_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El correo de Google no está verificado"
+        )
+
+    email = str(idinfo.get("email", "")).lower().strip()
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo obtener el correo de la cuenta de Google"
+        )
+
+    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+
+    if usuario:
+        if usuario.rol != RolUsuario.conductor:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="El acceso con Google es solo para conductores"
+            )
+        if not usuario.activo:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cuenta inactiva. Por favor contacte al administrador."
+            )
+    else:
+        nombre = idinfo.get("name") or email.split("@")[0]
+        random_pwd = secrets.token_urlsafe(32)
+        usuario = Usuario(
+            nombre=nombre,
+            email=email,
+            password_hash=hash_password(random_pwd),
+            rol=RolUsuario.conductor,
+            activo=True
+        )
+        db.add(usuario)
+        db.commit()
+        db.refresh(usuario)
+
+    access_token = create_access_token({
+        "sub": usuario.id,
+        "email": usuario.email,
+        "rol": usuario.rol.value,
+        "sede_id": usuario.sede_id
+    })
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UsuarioResponse.model_validate(usuario)
     )
 
 @router.get("/perfil", response_model=UsuarioResponse)

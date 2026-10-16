@@ -62,6 +62,9 @@ class SSOLoginRequest(BaseModel):
     nombre: str
     token_proveedor: str
 
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
 class VehiculoBase(BaseModel):
     placa: str
     marca: Optional[str] = None
